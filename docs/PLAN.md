@@ -176,9 +176,9 @@ persistence, all components from the mock (buttons, inputs, segmented controls, 
 **Test:** does it look exactly like the mock, in both themes, resized and collapsed?
 **Risk:** none — zero privileged code. Pure visual review.
 
-### Stage 2 — Read-Only Diagnostics  👁️ *read-only*
-**Build:** adapter enumeration, ping probe, SSH port probe, cached non-blocking probe,
-live status pill, Activity Log.
+### Stage 2 — Read-Only Diagnostics  👁️ *read-only*  ✅ **DONE**
+**Build:** adapter enumeration, staged ping + TCP/22 probe, cached non-blocking monitor,
+live status pill, diagnostics panel with per-stage verdicts.
 **Test:** plug/unplug the cable, start/stop services on the console — watch status update.
 **Risk:** low — nothing is modified. This also becomes the permanent diagnostic tool.
 

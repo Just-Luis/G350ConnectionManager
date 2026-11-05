@@ -37,7 +37,15 @@ public partial class MainWindow : Window
         ApplyCollapsedState(_collapsed);
         Navigate("Home");
 
+        App.Link.Updated += OnLinkUpdated;
+        OnLinkUpdated(this, App.Link.Current);
+
         _initialising = false;
+    }
+
+    private void OnLinkUpdated(object? sender, Models.LinkSnapshot snapshot)
+    {
+        SetConnectionStatus(snapshot.IsReady, snapshot.Headline, snapshot.Detail);
     }
 
     // ---------------------------------------------------------------- nav
@@ -123,13 +131,18 @@ public partial class MainWindow : Window
     // -------------------------------------------------------- status pill
 
     /// <summary>
-    /// Stage 1 has no probing yet, so the pill shows an idle state. Stage 2's
-    /// LinkMonitor will drive this through the same method.
+    /// Updates the sidebar pill from the latest <see cref="Models.LinkSnapshot"/>.
     /// </summary>
     public void SetConnectionStatus(bool connected, string headline, string? detail = null)
     {
         StatusDot.Fill = (Brush)FindResource(connected ? "StatusOkBrush" : "StatusIdleBrush");
         StatusText.Text = headline;
         StatusDetail.Text = detail ?? (connected ? string.Empty : "No console detected");
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        App.Link.Updated -= OnLinkUpdated;
+        base.OnClosed(e);
     }
 }
