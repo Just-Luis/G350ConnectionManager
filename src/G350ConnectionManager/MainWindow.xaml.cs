@@ -9,7 +9,11 @@ namespace G350ConnectionManager;
 public partial class MainWindow : Window
 {
     private const double ExpandedSidebarWidth = 230;
-    private const double CollapsedSidebarWidth = 72;
+
+    // 78 = 2 * sidebar padding (14) + 2 * nav padding (14) + icon (22).
+    // Any narrower and a centred collapsed icon sits a few px left of where it
+    // sits when expanded, so every toggle makes the icons jump sideways.
+    private const double CollapsedSidebarWidth = 78;
 
     private bool _collapsed;
     private bool _initialising = true;
@@ -78,9 +82,18 @@ public partial class MainWindow : Window
         ConnectionPill.Visibility = visibility;
 
         CollapseIcon.Data = (Geometry)FindResource(collapsed ? "IconChevronRight" : "IconChevronLeft");
-        CollapseButton.HorizontalAlignment = collapsed
+
+        // Keep the chevron on the same 28px axis as the nav icons in both states:
+        // expanded  -> 14px left padding + half of the 20px glyph = 24, so nudge to 28
+        // collapsed -> centred 20px glyph inside 78px = 29, so nudge back to 28
+        // Keeps the chevron centred on the same 39px axis the nav icons use.
+        CollapseButton.Padding = collapsed
+            ? new Thickness(0)
+            : new Thickness(15, 0, 14, 0);
+        CollapseButton.HorizontalAlignment = HorizontalAlignment.Stretch;
+        CollapseButton.HorizontalContentAlignment = collapsed
             ? HorizontalAlignment.Center
-            : HorizontalAlignment.Stretch;
+            : HorizontalAlignment.Left;
         CollapseButton.ToolTip = collapsed ? "Expand sidebar" : "Collapse sidebar";
 
         // Icon-only mode: drop the horizontal padding, centre the 22px glyph and
