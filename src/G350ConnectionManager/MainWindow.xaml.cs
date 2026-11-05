@@ -78,30 +78,31 @@ public partial class MainWindow : Window
         ConnectionPill.Visibility = visibility;
 
         CollapseIcon.Data = (Geometry)FindResource(collapsed ? "IconChevronRight" : "IconChevronLeft");
-        CollapseButton.HorizontalAlignment = HorizontalAlignment.Center;
+        CollapseButton.HorizontalAlignment = collapsed
+            ? HorizontalAlignment.Center
+            : HorizontalAlignment.Stretch;
         CollapseButton.ToolTip = collapsed ? "Expand sidebar" : "Collapse sidebar";
 
-        // Icon-only mode centres each nav glyph and drops the labels.
+        // Icon-only mode: drop the horizontal padding, centre the 22px glyph and
+        // hide the labels. Padding lives on the template's Border via
+        // TemplateBinding, so setting it on the RadioButton is enough.
         foreach (var nav in new[] { NavHome, NavNetwork, NavScreen, NavFiles, NavSettings })
         {
-            if (nav.Content is not StackPanel panel) continue;
+            nav.Padding = collapsed ? new Thickness(0) : new Thickness(14, 0, 14, 0);
+            nav.HorizontalContentAlignment = collapsed
+                ? HorizontalAlignment.Center
+                : HorizontalAlignment.Left;
+            nav.ToolTip = collapsed ? nav.Tag as string : null;
 
-            if (collapsed)
-            {
-                nav.HorizontalContentAlignment = HorizontalAlignment.Center;
-                nav.Padding = new Thickness(0);
-            }
-            else
-            {
-                nav.HorizontalContentAlignment = HorizontalAlignment.Left;
-            }
+            if (nav.Content is not StackPanel panel) continue;
 
             foreach (var child in panel.Children)
             {
                 if (child is TextBlock label)
-                    label.Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
-                else if (child is FrameworkElement icon)
-                    icon.Margin = collapsed ? new Thickness(0) : new Thickness(0);
+                {
+                    label.Visibility = visibility;
+                    label.Margin = collapsed ? new Thickness(0) : new Thickness(12, 0, 0, 0);
+                }
             }
         }
     }

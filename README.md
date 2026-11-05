@@ -24,6 +24,10 @@
 | :---: | :---: |
 | ![Home light](docs/screenshots/home-light.png) | ![Home dark](docs/screenshots/home-dark.png) |
 
+| Files (dual pane) | Collapsed sidebar |
+| :---: | :---: |
+| ![Files](docs/screenshots/files.png) | ![Collapsed sidebar](docs/screenshots/sidebar-collapsed.png) |
+
 Six highlight colours, a collapsible icon-only sidebar, and a UI that mirrors the
 original design mock.
 
