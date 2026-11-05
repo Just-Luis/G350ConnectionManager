@@ -203,13 +203,21 @@ shipping a write path first would mean debugging blind.
 Order was determined empirically: the **private** (target) side must be enabled
 before the **public** (source) side, and disabled in reverse.
 
-**ICS alone is not enough.** Measured on hardware: enabling sharing moves the
-PC adapter to `192.168.137.1` and the console gains `192.168.137.2`, but the
-console *keeps* its static default route via `192.168.7.1` — a gateway that no
-longer exists. SSH keeps working (both addresses live on `usb0`) while internet
-silently fails. Repointing the console's default route to `.137.1` fixes it, and
-pointing it back breaks it again, so the link is causal. Stage 4b therefore pairs
-the toggle with a console-side route change over SSH.
+**The console script already handles the address switch.** `USB_Network_Manager.sh`
+adds *both* `192.168.7.2/24` and `192.168.137.2/24` to `usb0`, then probes for
+`192.168.137.1` and chooses the matching default route:
+
+```
+ip addr add 192.168.7.2/24   dev usb0
+ip addr add 192.168.137.2/24 dev usb0
+ping -c1 192.168.137.1 && route via 192.168.137.1 || route via 192.168.7.1
+```
+
+So after the PC's address changes the only step needed is **[A] Start Services**
+on the console again. An earlier build repointed the console's route over SSH;
+that was removed — it duplicated logic that already exists, would drift from it,
+and would be overwritten the next time services started anyway. The app now just
+tells the user to restart services.
 
 ### Stage 5 — Screen Preview & Screenshots  📷
 **Build:** SSH session, grabber upload, frame reader, live preview, PNG capture, teardown.

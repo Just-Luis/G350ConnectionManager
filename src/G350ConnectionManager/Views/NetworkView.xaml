@@ -276,45 +276,33 @@
                                             Click="IcsDisable_Click"/>
                                 </StackPanel>
 
-                                <!-- Live state of the console's default route. ICS
-                                     moves the PC to .137.1 but the console keeps a
-                                     default route via .7.1, so internet fails until
-                                     the route is repointed. -->
-                                <Border x:Name="RouteBox" Visibility="Collapsed"
+                                <!-- What to do on the console after the PC address moved. -->
+                                <Border x:Name="ConsoleNoteBox" Visibility="Collapsed"
                                         Margin="0,12,0,0" CornerRadius="8" Padding="12"
                                         Background="{DynamicResource SurfaceBrush}"
                                         BorderBrush="{DynamicResource DividerBrush}"
                                         BorderThickness="1">
-                                    <StackPanel>
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Ellipse x:Name="RouteDot" Grid.Column="0"
-                                                     Width="9" Height="9" VerticalAlignment="Center"
-                                                     Fill="{DynamicResource StatusIdleBrush}"/>
-                                            <TextBlock x:Name="RouteText" Grid.Column="1"
-                                                       Margin="9,0,0,0" VerticalAlignment="Center"
-                                                       FontSize="13" TextWrapping="Wrap"
-                                                       Foreground="{DynamicResource TextPrimaryBrush}"
-                                                       Text="Console route — not checked"/>
-                                            <Button x:Name="RouteFixButton" Grid.Column="2"
-                                                    Style="{StaticResource SecondaryButtonStyle}"
-                                                    Content="Fix route"
-                                                    Padding="12,5" FontSize="12"
-                                                    Visibility="Collapsed"
-                                                    Click="RouteFix_Click"/>
-                                        </Grid>
-                                    </StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Ellipse x:Name="ConsoleNoteDot" Grid.Column="0"
+                                                 Width="9" Height="9" VerticalAlignment="Top"
+                                                 Margin="0,4,0,0"
+                                                 Fill="{DynamicResource StatusIdleBrush}"/>
+                                        <TextBlock x:Name="ConsoleNoteText" Grid.Column="1"
+                                                   Margin="9,0,0,0" FontSize="12.5"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    </Grid>
                                 </Border>
                             </StackPanel>
                         </StackPanel>
                     </Border>
 
                     <TextBlock x:Name="IcsFooterText"
-                               Text="Turning sharing on moves the PC adapter to 192.168.137.1 — the console route is realigned for you."
+                               Text="Sharing moves the PC adapter to 192.168.137.1. Start services on the console again afterwards so it picks up the new gateway."
                                FontSize="13" Margin="0,14,0,0" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextMutedBrush}"/>
                 </StackPanel>
