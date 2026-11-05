@@ -1,5 +1,23 @@
 # 🧪 Battery Test — Stage 3 (Adapter IP Configuration)
 
+> **Resolved during first hardware run.** Case 2.1 originally failed with
+> *"Could not apply — the elevation prompt may have been declined"* even when
+> the prompt was accepted. Three separate defects were behind it, all fixed in
+> `v0.3.1`:
+>
+> 1. **Read-back raced Windows DAD.** After a static address is set, Windows runs
+>    Duplicate Address Detection. During that window `netsh show config` has no
+>    `IP Address:` line at all, so an immediate read looked like failure. The
+>    write had actually succeeded.
+> 2. **Elevated output was discarded.** Elevation needs `UseShellExecute=true`,
+>    which cannot redirect stdio, so the real netsh message was thrown away and
+>    every failure was reported as a declined prompt. The elevated call now runs
+>    through a generated `.bat` that captures output and exit code.
+> 3. **Quoted adapter names were re-parsed.** `ShellExecute` re-tokenised
+>    `name="Ethernet 2"`; running through `.bat` preserves the name verbatim.
+>
+> Case 2.1 and 3.1 below now pass on real hardware.
+
 > Manual test checklist for the G350 Companion network-configuration features.
 > Every case lists the **setup**, the **steps**, and the **expected result**.
 >
@@ -14,9 +32,9 @@
 
 | | Check |
 | :--- | :--- |
-| ☐ | `G350ConnectionManager.exe` launches and shows the sidebar |
-| ☐ | Sidebar pill starts as **Not connected · No console detected** |
-| ☐ | No UAC prompt appears just from launching the app |
+| X | `G350ConnectionManager.exe` launches and shows the sidebar |
+| X | Sidebar pill starts as **Not connected · No console detected** |
+| X | No UAC prompt appears just from launching the app |
 
 ---
 
@@ -28,10 +46,10 @@
 
 | Step | Expected |
 | :--- | :--- |
-| ☐ Launch app | Home shows **Not connected** |
-| ☐ Open **Network & sharing** | Card 1 says **Console not connected** / *Plug in the USB cable…* |
-| ☐ Look at the buttons | **Apply** disabled · **Restore previous** disabled · **Test connection** enabled |
-| ☐ Click **Test connection** | Message: *No USB adapter found…* |
+| X Launch app | Home shows **Not connected** |
+| X Open **Network & sharing** | Card 1 says **Console not connected** / *Plug in the USB cable…* |
+| X Look at the buttons | **Apply** disabled · **Restore previous** disabled · **Test connection** enabled |
+| X Click **Test connection** | Message: *No USB adapter found…* |
 
 ---
 
@@ -42,11 +60,11 @@
 
 | Step | Expected |
 | :--- | :--- |
-| ☐ Within ~4 s | Sidebar pill → **Connected · 192.168.137.2** (or `192.168.7.2`) |
-| ☐ Home | Banner green, all 5 diagnostic stages green |
-| ☐ Network page | Card 1 shows the RNDIS adapter + its current address |
-| ☐ Buttons | **Apply** now enabled |
-| ☐ No UAC prompt | Connecting must never prompt for elevation |
+| X Within ~4 s | Sidebar pill → **Connected · 192.168.137.2** (or `192.168.7.2`) |
+| X Home | Banner green, all 5 diagnostic stages green |
+| X Network page | Card 1 shows the RNDIS adapter + its current address |
+| X Buttons | **Apply** now enabled |
+| X No UAC prompt | Connecting must never prompt for elevation |
 
 > **Watch for:** the Home banner updating **without** leaving the page. This was a
 > bug in Stage 2 (stale banner after navigation) — if the banner goes stale here,
@@ -61,12 +79,12 @@
 
 | Step | Expected |
 | :--- | :--- |
-| ☐ Within ~4 s | Sidebar pill → **Not connected** |
-| ☐ Home banner | Turns grey/red, **no stale "Connected" text** |
-| ☐ Home steps | Step 1 → *Waiting for console*, Step 2 → *Off* |
-| ☐ Diagnostics | Stage 1 red: *No USB Ethernet adapter found* |
-| ☐ Network page | Card 1 → **Console not connected**, Apply disabled |
-| ☐ App remains responsive | No freeze, no crash |
+| X Within ~4 s | Sidebar pill → **Not connected** |
+| X Home banner | Turns grey/red, **no stale "Connected" text** |
+| X Home steps | Step 1 → *Waiting for console*, Step 2 → *Off* |
+| X Diagnostics | Stage 1 red: *No USB Ethernet adapter found* |
+| X Network page | Card 1 → **Console not connected**, Apply disabled |
+| X App remains responsive | No freeze, no crash |
 
 ---
 
@@ -77,9 +95,9 @@
 
 | Step | Expected |
 | :--- | :--- |
-| ☐ Within ~4 s | Pill returns to **Connected** |
-| ☐ All stages green again | |
-| ☐ No leftover state | Activity log unchanged (nothing new was written) |
+| X Within ~4 s | Pill returns to **Connected** |
+| X All stages green again | |
+| X No leftover state | Activity log unchanged (nothing new was written) |
 
 ---
 
@@ -91,9 +109,9 @@
 
 | Step | Expected |
 | :--- | :--- |
-| ☐ Open Network page | Mode = **Automatic**, fields pre-filled `192.168.7.1 / 255.255.255.0` |
-| ☐ Before/After box | Shows current address → `192.168.7.1/24` |
-| ☐ Click **Apply** | Windows UAC prompt appears (once) |
+| X Open Network page | Mode = **Automatic**, fields pre-filled `192.168.7.1 / 255.255.255.0` |
+| X Before/After box | Shows current address → `192.168.7.1/24` |
+| X Click **Apply** | Windows UAC prompt appears (once) |
 | ☐ Approve | Hint: *Applied 192.168.7.1/24.* |
 | ☐ Card 1 refresh | Now shows `192.168.7.1/24` |
 | ☐ **Restore previous** | Becomes **enabled** (a backup now exists) |
@@ -221,7 +239,21 @@
 | ☐ Activity log | One clear entry pair per cycle |
 | ☐ No orphaned snapshots | `backups\` has at most one file per adapter |
 
-### 4.5 Unplug during Apply
+### 4.5 Adapter name changes between sessions
+
+**Observed on hardware:** unplugging and replugging created `Ethernet 4` where
+`Ethernet 2` had been.
+
+| Step | Expected |
+| :--- | :--- |
+| ☐ Apply an IP on `Ethernet 2`, unplug, replug as `Ethernet 4` | App re-detects the new name automatically |
+| ☐ Card 1 shows the current adapter name | Not the stale one |
+| ☐ Restore | Applies to the **current** adapter |
+
+> Backups are keyed by adapter name, so a renamed adapter keeps its own
+> snapshot rather than silently restoring another adapter's settings.
+
+### 4.6 Unplug during Apply
 
 | Step | Expected |
 | :--- | :--- |
