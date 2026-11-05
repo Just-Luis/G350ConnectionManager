@@ -98,20 +98,38 @@ public sealed class NetworkConfigService
         Log($"[{adapterName}] before: {before}");
 
         // 2. Apply.
-        var setIp = await RunAsync(
-            $"netsh interface ipv4 set address name=\"{adapterName}\" static {address} {mask}" +
-            (string.IsNullOrWhiteSpace(gateway) ? " none" : $" {gateway}"),
-            requireElevation: true);
+        var applyArgs =
+            $"interface ipv4 set address name=\"{adapterName}\" static {address} {mask}" +
+            (string.IsNullOrWhiteSpace(gateway) ? " none" : $" {gateway}");
 
-        if (setIp is null)
+        var setResult = await RunElevatedAsync(applyArgs);
+        if (!setResult.Ok)
         {
-            Log($"[{adapterName}] apply FAILED (elevation denied or netsh error)");
-            return (false, "Could not apply — the elevation prompt may have been declined.");
+            Log($"[{adapterName}] apply FAILED: {setResult.Message}");
+            return (false, $"Could not apply — {setResult.Message}");
         }
 
         // 3. Verify by reading back.
-        var after = await ReadAsync(adapterName);
+        //
+        // Windows runs Duplicate Address Detection after a static address is set,
+        // during which `netsh show config` has no "IP Address:" line at all and
+        // ipconfig reports the address as (Tentative). Reading back immediately
+        // therefore looks like a failure even when the write succeeded, so poll
+        // for a few seconds before declaring it broken.
         var expectedPrefix = Ipv4Config.MaskToPrefix(mask) ?? 24;
+        Ipv4Config? after = null;
+        for (var attempt = 0; attempt < 12; attempt++)
+        {
+            after = await ReadAsync(adapterName);
+            if (after is not null
+                && after.Address == address
+                && after.PrefixLength == expectedPrefix)
+            {
+                break;
+            }
+            await Task.Delay(250);
+        }
+
         var ok = after is not null
                  && after.Address == address
                  && after.PrefixLength == expectedPrefix;
@@ -140,30 +158,33 @@ public sealed class NetworkConfigService
 
         Log($"[{adapterName}] restoring: {saved}");
 
-        string? result;
-        if (saved.Mode == "DHCP")
-        {
-            result = await RunAsync(
-                $"netsh interface ipv4 set address name=\"{adapterName}\" source=dhcp",
-                requireElevation: true);
-        }
-        else
-        {
-            var mask = Ipv4Config.PrefixToMask(saved.PrefixLength);
-            result = await RunAsync(
-                $"netsh interface ipv4 set address name=\"{adapterName}\" static {saved.Address} {mask}" +
-                (saved.Gateway is null ? " none" : $" {saved.Gateway}"),
-                requireElevation: true);
-        }
+        var restoreArgs = saved.Mode == "DHCP"
+            ? $"interface ipv4 set address name=\"{adapterName}\" source=dhcp"
+            : $"interface ipv4 set address name=\"{adapterName}\" static {saved.Address} " +
+              $"{Ipv4Config.PrefixToMask(saved.PrefixLength)}" +
+              (saved.Gateway is null ? " none" : $" {saved.Gateway}");
 
-        if (result is null)
+        var result = await RunElevatedAsync(restoreArgs);
+        if (!result.Ok)
         {
-            Log($"[{adapterName}] restore FAILED");
-            return (false, "Could not restore — the elevation prompt may have been declined.");
+            Log($"[{adapterName}] restore FAILED: {result.Message}");
+            return (false, $"Could not restore — {result.Message}");
         }
 
         DeleteSnapshot(adapterName);
-        var after = await ReadAsync(adapterName);
+
+        // Same DAD settling window as Apply: wait for the restored value to show up.
+        Ipv4Config? after = null;
+        for (var attempt = 0; attempt < 12; attempt++)
+        {
+            after = await ReadAsync(adapterName);
+            var matches = saved.Mode == "DHCP"
+                ? after?.Mode == "DHCP"
+                : after?.Address == saved.Address;
+            if (matches) break;
+            await Task.Delay(250);
+        }
+
         Log($"[{adapterName}] restored to: {after}");
         return (true, $"Restored to {saved}.");
     }
@@ -284,56 +305,109 @@ public sealed class NetworkConfigService
     }
 
     /// <summary>
-    /// Runs a netsh mutation, elevating only this operation (UAC prompt).
-    /// Returns null when it could not run or exited non-zero.
+    /// Runs a netsh mutation elevated (UAC prompt for this one operation only).
+    ///
+    /// Two problems had to be solved here:
+    ///
+    /// 1. Elevation requires UseShellExecute=true, which cannot redirect stdio.
+    ///    Output is therefore captured by running a generated .bat that redirects
+    ///    to a temp file.
+    /// 2. ShellExecute re-parses the argument string, which mangles quoted adapter
+    ///    names containing spaces ("Ethernet 2" becomes two tokens, and netsh then
+    ///    reports a confusing parameter error). Putting the command inside a .bat
+    ///    means cmd.exe does the parsing and the name survives verbatim.
+    ///
+    /// Capturing output also matters because netsh exits 1 for every failure —
+    /// bad adapter, invalid address, and a declined UAC prompt are otherwise
+    /// indistinguishable.
     /// </summary>
-    private static async Task<string?> RunAsync(string arguments, bool requireElevation = false)
+    private static async Task<(bool Ok, string Message)> RunElevatedAsync(string netshArgs)
     {
+        var id = Guid.NewGuid().ToString("N");
+        var batPath = Path.Combine(Path.GetTempPath(), $"g350-netsh-{id}.bat");
+        var outPath = Path.Combine(Path.GetTempPath(), $"g350-netsh-{id}.txt");
+
         try
         {
+            // > redirects both streams; exit code of netsh is propagated by cmd.
+            var script =
+                "@echo off\r\n" +
+                $"netsh {netshArgs} > \"{outPath}\" 2>&1\r\n" +
+                "exit /b %ERRORLEVEL%\r\n";
+            await File.WriteAllTextAsync(batPath, script);
+
             var psi = new ProcessStartInfo
             {
-                FileName = "netsh",
-                Arguments = arguments,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
+                FileName = batPath,
+                UseShellExecute = true,
+                Verb = "runas",
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden
             };
 
-            if (requireElevation)
-            {
-                psi.UseShellExecute = true;
-                psi.RedirectStandardOutput = false;
-                psi.RedirectStandardError = false;
-                psi.CreateNoWindow = false;
-                psi.Verb = "runas";
-            }
-
             using var proc = Process.Start(psi);
-            if (proc is null) return null;
+            if (proc is null) return (false, "could not start the elevation helper");
 
-            if (requireElevation)
-            {
-                // Elevation path cannot capture stdout; success is exit code 0.
-                await proc.WaitForExitAsync();
-                return proc.ExitCode == 0 ? string.Empty : null;
+            await proc.WaitForExitAsync();
+
+            var output = File.Exists(outPath) ? (await File.ReadAllTextAsync(outPath)).Trim() : string.Empty;
+
+            if (proc.ExitCode == 0) {
+                return (true, "done");
             }
 
-            var stdout = await proc.StandardOutput.ReadToEndAsync();
-            await proc.WaitForExitAsync();
-            return proc.ExitCode == 0 ? stdout : null;
+            // Treat "already in that state" as success rather than an error.
+            if (IsBenignNetshMessage(output)) {
+                return (true, "already configured");
+            }
+
+            return (false, ExplainNetsh(output, proc.ExitCode));
         }
-        catch (System.ComponentModel.Win32Exception)
+        catch (System.ComponentModel.Win32Exception ex)
         {
-            // User declined the UAC prompt.
-            return null;
+            // 1223 = ERROR_CANCELLED, i.e. the UAC prompt was dismissed.
+            return ex.NativeErrorCode == 1223
+                ? (false, "the Windows elevation prompt was declined")
+                : (false, ex.Message);
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            return (false, ex.Message);
+        }
+        finally
+        {
+            try { if (File.Exists(batPath)) File.Delete(batPath); } catch { }
+            try { if (File.Exists(outPath)) File.Delete(outPath); } catch { }
         }
     }
+
+    /// <summary>Turns netsh's own wording into something actionable.</summary>
+    private static string ExplainNetsh(string output, int exitCode)
+    {
+        if (output.Length == 0) return $"netsh exited with code {exitCode}";
+
+        if (output.Contains("requires elevation", StringComparison.OrdinalIgnoreCase))
+            return "Windows did not grant administrator rights";
+        if (output.Contains("filename, directory name", StringComparison.OrdinalIgnoreCase)
+            || output.Contains("not find", StringComparison.OrdinalIgnoreCase)
+            || output.Contains("no more data", StringComparison.OrdinalIgnoreCase))
+            return "the adapter could not be found — reconnect the console and try again";
+        if (output.Contains("Invalid address parameter", StringComparison.OrdinalIgnoreCase))
+            return "the IP address was rejected by Windows";
+        if (output.Contains("Invalid source parameter", StringComparison.OrdinalIgnoreCase)
+            || output.Contains("Invalid parameter", StringComparison.OrdinalIgnoreCase))
+            return "Windows rejected the command parameters";
+
+        return output.Replace("\r", "").Replace("\n", " ").Trim();
+    }
+
+    /// <summary>
+    /// netsh reports some harmless conditions as errors. "DHCP is already
+    /// enabled" when restoring a DHCP snapshot is not a failure.
+    /// </summary>
+    private static bool IsBenignNetshMessage(string output) =>
+        output.Contains("already enabled", StringComparison.OrdinalIgnoreCase)
+        || output.Contains("already exists", StringComparison.OrdinalIgnoreCase);
 
     private static string? FirstMatch(string text, string pattern)
     {
