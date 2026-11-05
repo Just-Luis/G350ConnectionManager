@@ -23,6 +23,31 @@
                                    Margin="10,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
 
+                    <!-- Current state of the console's adapter -->
+                    <Border Background="{DynamicResource RaisedBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1" CornerRadius="10"
+                            Padding="14" Margin="0,0,0,16">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Ellipse x:Name="CurrentDot" Width="10" Height="10"
+                                         VerticalAlignment="Center"
+                                         Fill="{DynamicResource StatusIdleBrush}"/>
+                                <TextBlock x:Name="CurrentAdapterText" Grid.Column="1"
+                                           Margin="10,0,0,0" FontSize="14" FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            </Grid>
+                            <TextBlock x:Name="CurrentConfigText" FontSize="13" Margin="20,4,0,0"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Automatic / Manual -->
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
                         <Border Style="{StaticResource SegmentGroupStyle}">
@@ -37,6 +62,9 @@
                                              Checked="IpMode_Changed"/>
                             </StackPanel>
                         </Border>
+                        <TextBlock x:Name="ModeHint" Margin="14,0,0,0" FontSize="13"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextMutedBrush}"/>
                     </StackPanel>
 
                     <!-- Fields -->
@@ -66,19 +94,55 @@
                         </StackPanel>
                     </Grid>
 
+                    <!-- Before / After preview -->
+                    <Border x:Name="DiffBox"
+                            Background="{DynamicResource RaisedBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1" CornerRadius="10"
+                            Padding="14" Margin="0,16,0,0"
+                            Visibility="Collapsed">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Current" Style="{StaticResource FieldLabelStyle}"/>
+                                <TextBlock x:Name="DiffBefore" FontSize="13" TextWrapping="Wrap"
+                                           FontFamily="Consolas"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="1" Text="→" Margin="16,14,16,0" FontSize="16"
+                                       Foreground="{DynamicResource TextMutedBrush}"/>
+
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="After apply" Style="{StaticResource FieldLabelStyle}"/>
+                                <TextBlock x:Name="DiffAfter" FontSize="13" TextWrapping="Wrap"
+                                           FontFamily="Consolas"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
                     <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
                         <Button x:Name="ApplyButton" Content="Apply"
                                 Style="{StaticResource PrimaryButtonStyle}"
                                 Margin="0,0,10,0" Click="Apply_Click"/>
+                        <Button x:Name="RestoreButton" Content="Restore previous"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Margin="0,0,10,0" Click="Restore_Click"
+                                IsEnabled="False"/>
                         <Button x:Name="TestButton" Content="Test connection"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Click="Test_Click"/>
                     </StackPanel>
 
-                    <TextBlock x:Name="NetworkHint"
-                               Text="Network configuration arrives in Stage 3."
-                               FontSize="13" Margin="0,14,0,0"
-                               Foreground="{DynamicResource TextMutedBrush}"/>
+                    <TextBlock x:Name="NetworkHint" FontSize="13" Margin="0,14,0,0"
+                               TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
                 </StackPanel>
             </Border>
 
@@ -108,18 +172,40 @@
 
                         <StackPanel Grid.Column="0" Margin="0,0,10,0">
                             <TextBlock Text="Share from" Style="{StaticResource FieldLabelStyle}"/>
-                            <ComboBox x:Name="ShareFromCombo" Style="{StaticResource ThemedComboBoxStyle}" IsEnabled="False"/>
+                            <ComboBox x:Name="ShareFromCombo" Style="{StaticResource ThemedComboBoxStyle}"
+                                      IsEnabled="False"/>
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Margin="10,0,0,0">
                             <TextBlock Text="Share to" Style="{StaticResource FieldLabelStyle}"/>
-                            <ComboBox x:Name="ShareToCombo" Style="{StaticResource ThemedComboBoxStyle}" IsEnabled="False"/>
+                            <ComboBox x:Name="ShareToCombo" Style="{StaticResource ThemedComboBoxStyle}"
+                                      IsEnabled="False"/>
                         </StackPanel>
                     </Grid>
 
                     <TextBlock Text="Internet sharing arrives in Stage 4."
                                FontSize="13" Margin="0,14,0,0"
                                Foreground="{DynamicResource TextMutedBrush}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ Activity log ============ -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,18,0,0">
+                <StackPanel>
+                    <TextBlock Text="Activity log" Style="{StaticResource SectionTitleStyle}"/>
+                    <TextBlock Text="Every change this app makes, with before and after."
+                               Style="{StaticResource BodyTextStyle}" Margin="0,4,0,12"/>
+
+                    <Border Background="{DynamicResource RaisedBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1" CornerRadius="10"
+                            Padding="12" MinHeight="70">
+                        <ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto">
+                            <TextBlock x:Name="ActivityText" FontSize="12"
+                                       FontFamily="Consolas" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </ScrollViewer>
+                    </Border>
                 </StackPanel>
             </Border>
 

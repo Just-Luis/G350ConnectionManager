@@ -6,14 +6,14 @@
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11%20x64-blue.svg)]()
 [![Built with](https://img.shields.io/badge/Built%20with-C%23%20%2F%20.NET%208%20WPF-purple.svg)]()
-[![Status](https://img.shields.io/badge/Status-Stage%202%20%E2%80%94%20Diagnostics-brightgreen.svg)]()
+[![Status](https://img.shields.io/badge/Status-Stage%203%20%E2%80%94%20IP%20Config-brightgreen.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
 > [!NOTE]
 > **Work in progress.** This repository is being built up in nine independently testable
-> stages. Stages 1–2 (UI shell and live read-only diagnostics) are complete and runnable.
+> stages. Stages 1–3 (UI shell, live diagnostics, adapter IP configuration) are complete and runnable.
 > See **[docs/PLAN.md](docs/PLAN.md)** for the full roadmap.
 
 ---
@@ -39,7 +39,7 @@ original design mock.
 | :--- | :--- | :--- |
 | **1** | Shell & design system (navigation, themes, accent colours, settings persistence) | ✅ **Done** |
 | **2** | Read-only diagnostics (adapter detection, ping, SSH port, live status) | ✅ **Done** |
-| 3 | Adapter IP configuration (automatic & manual, with restore) | ⬜ Planned |
+| **3** | Adapter IP configuration (automatic & manual, with restore) | ✅ **Done** |
 | 4 | Internet sharing (ICS toggle, adapter pickers, conflict warnings) | ⬜ Planned |
 | 5 | Screen preview & screenshots | ⬜ Planned |
 | 6 | MJPEG streaming | ⬜ Planned |
@@ -113,6 +113,7 @@ control `38 px / r8`, input `42 px / r10`, card `r14`.
 G350ConnectionManager/
 ├── docs/
 │   ├── PLAN.md              full plan, decisions and staged roadmap
+│   ├── BATTERY_TEST_v0.3.0.md  manual test checklist
 │   └── screenshots/         UI progress shots
 ├── src/G350ConnectionManager/
 │   ├── App.xaml(.cs)        startup, settings load, theme init
