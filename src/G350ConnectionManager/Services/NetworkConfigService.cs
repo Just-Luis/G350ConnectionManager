@@ -22,9 +22,21 @@ public sealed class NetworkConfigService
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "G350ConnectionManager", "backups");
 
-    /// <summary>The values the app considers "automatic" for the console link.</summary>
+    /// <summary>Addresses the app treats as "automatic" for the console link.</summary>
+    ///
+    /// There are two valid automatic setups and Windows decides which one applies:
+    ///
+    ///   192.168.7.1    direct USB link, no internet sharing
+    ///   192.168.137.1 Windows Internet Connection Sharing
+    ///
+    /// ICS reserves 192.168.137.1 for the shared adapter and will overwrite
+    /// anything else, so Automatic mode has to follow the sharing state rather
+    /// than always suggesting .7.1.
     public const string AutoAddress = "192.168.7.1";
     public const string AutoMask = "255.255.255.0";
+
+    /// <summary>Address ICS forces on the shared adapter.</summary>
+    public const string IcsAutoAddress = "192.168.137.1";
 
     /// <summary>Append-only in-memory activity log shown in the UI.</summary>
     public List<string> Activity { get; } = new();

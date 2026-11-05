@@ -124,10 +124,20 @@ public partial class NetworkView : UserControl
 
         if (!manual)
         {
-            IpAddressBox.Text = NetworkConfigService.AutoAddress;
+            // Automatic has to match what Windows is actually doing. While ICS is
+            // on it owns the adapter at 192.168.137.1 and would overwrite .7.1,
+            // so suggesting that here would be actively wrong.
+            var sharing = _icsSnapshot?.IsActive == true;
+
+            IpAddressBox.Text = sharing
+                ? NetworkConfigService.IcsAutoAddress
+                : NetworkConfigService.AutoAddress;
             SubnetBox.Text = NetworkConfigService.AutoMask;
             GatewayBox.Text = string.Empty;
-            ModeHint.Text = "Assigns 192.168.7.1 so the console appears at 192.168.7.2.";
+
+            ModeHint.Text = sharing
+                ? "Internet sharing sets 192.168.137.1, so the console appears at 192.168.137.2."
+                : "Assigns 192.168.7.1 so the console appears at 192.168.7.2.";
         }
         else
         {
@@ -479,6 +489,9 @@ public partial class NetworkView : UserControl
         var snapshot = await _ics.ReadAsync();
         _icsSnapshot = snapshot;
         RenderIcs(snapshot);
+
+        // Sharing state decides what "automatic" means, so refresh step 1 too.
+        UpdateFieldState();
     }
 
     // ------------------------------------------------ console network refresh
@@ -511,28 +524,23 @@ public partial class NetworkView : UserControl
             : "StatusErrorBrush");
 
         IcsRestartText.Text = online
-            ? $"Console updated — online via {gateway}."
+            ? $"Console updated (gateway {gateway}), the console has internet."
             : ok
-                ? $"Console updated (gateway {gateway}), but it still has no internet."
+                ? $"Console updated (gateway {gateway}), the console has no internet."
                 : message;
     }
 
     /// <summary>
-    /// The .7.x vs .137.x conflict is the single most confusing part of this
-    /// feature, so it is stated explicitly instead of left to be discovered.
+    /// Flags genuinely broken configurations: sharing aimed at the wrong adapter,
+    /// or the console adapter accidentally made the internet *source*.
+    ///
+    /// The normal ICS state (console adapter at 192.168.137.1) is deliberately not
+    /// reported — it is the expected, working arrangement, and describing it only
+    /// made a healthy setup look like a problem.
     /// </summary>
     private void RenderIcsConflict(IcsSnapshot s, IcsConnection? priv, IcsConnection? console)
     {
         var notes = new List<string>();
-
-        if (s.IsActive && priv is not null && priv.LooksLikeConsole)
-        {
-            // Informational, not alarming: this is the normal, working state.
-            notes.Add(
-                $"Sharing is on, so the console adapter is now at "
-                + $"{s.ScopeAddress ?? "192.168.137.1"} and the console is at 192.168.137.2. "
-                + "Step 1 shows the address for when sharing is off — this is expected.");
-        }
 
         if (s.IsActive && priv is not null && !priv.LooksLikeConsole && console is not null)
         {
