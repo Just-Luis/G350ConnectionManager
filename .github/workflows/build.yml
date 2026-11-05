@@ -24,22 +24,23 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore
-        run: dotnet restore src/G350ConnectionManager/G350ConnectionManager.csproj
-
-      - name: Build
-        run: dotnet build src/G350ConnectionManager/G350ConnectionManager.csproj -c Release --no-restore
-
+      # `publish` performs its own restore for the Release + win-x64 target,
+      # which downloads the runtime packs a self-contained build needs. Doing
+      # a separate `restore`/`build` first (framework-dependent) leaves the
+      # assets file without the win-x64 target and fails with NETSDK1047/1112.
       - name: Publish single-file EXE
-        run: dotnet publish src/G350ConnectionManager/G350ConnectionManager.csproj -c Release
+        run: >
+          dotnet publish src/G350ConnectionManager/G350ConnectionManager.csproj
+          -c Release
+          -o out
 
-      - name: Collect artifact
+      - name: Verify artifact
         shell: pwsh
         run: |
-          $src = "src/G350ConnectionManager/bin/Release/net8.0-windows/win-x64/publish/G350ConnectionManager.exe"
-          New-Item -ItemType Directory -Force -Path out | Out-Null
-          Copy-Item $src out/G350ConnectionManager.exe
-          Get-Item out/G350ConnectionManager.exe | Select-Object Name, Length
+          $exe = "out/G350ConnectionManager.exe"
+          if (-not (Test-Path $exe)) { throw "EXE not produced" }
+          $item = Get-Item $exe
+          "{0}  {1:N1} MB" -f $item.Name, ($item.Length / 1MB)
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
