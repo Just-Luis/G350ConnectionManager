@@ -182,8 +182,8 @@ live status pill, diagnostics panel with per-stage verdicts.
 **Test:** plug/unplug the cable, start/stop services on the console — watch status update.
 **Risk:** low — nothing is modified. This also becomes the permanent diagnostic tool.
 
-### Stage 3 — Adapter IP Configuration  ⚙️ *first write*
-**Build:** automatic/manual IP, before/after diff, Apply, Restore, elevation helper.
+### Stage 3 — Adapter IP Configuration  ⚙️ *first write*  ✅ **DONE**
+**Build:** automatic/manual IP, before/after diff, Apply, Restore, per-operation elevation.
 **Test:** apply `192.168.7.1`, verify in `ncpa.cpl`, restore, verify gone.
 **Risk:** medium — first mutation. Reversible by design; test on a spare adapter first.
 
