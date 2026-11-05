@@ -17,6 +17,7 @@ public partial class NetworkView : UserControl
 
     private readonly NetworkConfigService _net = new();
     private readonly IcsService _ics = new();
+    private readonly ConsoleNetworkService _console = new();
     private bool _subscribed;
     private bool _busy;
     private bool _icsBusy;
@@ -332,7 +333,6 @@ public partial class NetworkView : UserControl
         RenderIcsConflict(s, priv, console);
         RenderIcsConnectionList(s);
         RenderIcsActions(s);
-        RenderConsoleNote();
     }
 
     /// <summary>
@@ -430,6 +430,12 @@ public partial class NetworkView : UserControl
 
         await App.Link.RefreshAsync();
         Render(App.Link.Current);
+
+        // The PC address just changed, so the console's gateway is stale.
+        // Ask it to re-apply rather than making the user press Start Services.
+        var host = App.Link.Current.ConsoleIp;
+        if (!string.IsNullOrEmpty(host))
+            await RefreshConsoleNetworkAsync(host);
     }
 
     /// <summary>
@@ -475,50 +481,40 @@ public partial class NetworkView : UserControl
         RenderIcs(snapshot);
     }
 
-    // -------------------------------------------------- console reconnect note
+    // ------------------------------------------------ console network refresh
 
     /// <summary>
-    /// Explains what to do on the console, rather than doing it for them.
+    /// Tells the console to re-apply its network settings after the PC's address
+    /// changed, so the user does not have to walk over and press Start Services.
     ///
-    /// The console's own USB Network Manager already adds BOTH addresses to usb0
-    /// and probes for 192.168.137.1 when services start, choosing the matching
-    /// default route automatically:
-    ///
-    ///     ip addr add 192.168.7.2/24   dev usb0
-    ///     ip addr add 192.168.137.2/24 dev usb0
-    ///     ping -c1 192.168.137.1 &amp;&amp; route via 192.168.137.1 || route via 192.168.7.1
-    ///
-    /// So the only action needed after the PC's address changes is to start the
-    /// services again. Repointing the route over SSH here would duplicate that
-    /// logic, drift from it, and be overwritten the next time services restart.
+    /// The console's USB_Network_Manager.sh performs the address + route step
+    /// itself (it adds both .7.2 and .137.2 to usb0 and probes for .137.1). The
+    /// app only triggers it via --refresh-net, which is non-destructive: it does
+    /// not unload g_ether or touch sshd, so it cannot cut the session used to
+    /// ask for it.
     /// </summary>
-    private void RenderConsoleNote()
+    private async Task RefreshConsoleNetworkAsync(string host)
     {
-        var console = App.Link.Current;
+        IcsRestartText.Text = "Updating the console's network…";
+        IcsRestartBox.Visibility = Visibility.Visible;
+        IcsRestartDot.Fill = (Brush)FindResource("StatusIdleBrush");
 
-        if (console.Adapter is null)
-        {
-            ConsoleNoteBox.Visibility = Visibility.Collapsed;
-            return;
-        }
+        var (ok, gateway, message) = await _console.RefreshNetworkAsync(host);
 
-        var sharing = _icsSnapshot?.IsActive == true;
+        // Verify rather than trust: the console reporting a gateway does not
+        // prove packets flow.
+        var online = ok && await _console.HasInternetAsync(host);
 
-        ConsoleNoteBox.Visibility = sharing ? Visibility.Visible : Visibility.Collapsed;
-        if (!sharing)
-        {
-            // Nothing to say when sharing is off: .7.x is the normal setup.
-            return;
-        }
+        IcsRestartDot.Fill = (Brush)FindResource(
+            online ? "StatusOkBrush"
+            : ok ? "StatusWarnBrush"
+            : "StatusErrorBrush");
 
-        ConsoleNoteText.Text =
-            "Start services on the console again ([A] Start Services). It adds "
-            + "192.168.137.2 and picks 192.168.137.1 as its gateway automatically, "
-            + "because it probes for the sharing address when it starts.";
-
-        ConsoleNoteDot.Fill = console.IsReady
-            ? (Brush)FindResource("StatusOkBrush")
-            : (Brush)FindResource("StatusWarnBrush");
+        IcsRestartText.Text = online
+            ? $"Console updated — online via {gateway}."
+            : ok
+                ? $"Console updated (gateway {gateway}), but it still has no internet."
+                : message;
     }
 
     /// <summary>
