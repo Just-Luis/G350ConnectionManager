@@ -213,11 +213,16 @@ ip addr add 192.168.137.2/24 dev usb0
 ping -c1 192.168.137.1 && route via 192.168.137.1 || route via 192.168.7.1
 ```
 
-So after the PC's address changes the only step needed is **[A] Start Services**
-on the console again. An earlier build repointed the console's route over SSH;
-that was removed — it duplicated logic that already exists, would drift from it,
-and would be overwritten the next time services started anyway. The app now just
-tells the user to restart services.
+So after the PC's address changes the console must re-run that step. Rather than
+ask the user to walk over and press **[A]**, the script gained a
+non-interactive `--refresh-net` mode that performs exactly the address + route
+part, and the app calls it over SSH automatically after the toggle.
+
+It is a *refresh*, not a stop+start: `stop_services()` unloads `g_ether` and
+flushes `usb0`, which would destroy the SSH session issuing the request.
+`--refresh-net` leaves sshd, samba, `g_ether` and `resolv.conf` alone.
+
+Full write-up: `G350Wired/docs/CONSOLE_CONTROL_INTERFACE.md`.
 
 ### Stage 5 — Screen Preview & Screenshots  📷
 **Build:** SSH session, grabber upload, frame reader, live preview, PNG capture, teardown.

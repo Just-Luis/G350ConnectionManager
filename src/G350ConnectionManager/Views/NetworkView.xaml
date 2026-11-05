@@ -276,8 +276,9 @@
                                             Click="IcsDisable_Click"/>
                                 </StackPanel>
 
-                                <!-- What to do on the console after the PC address moved. -->
-                                <Border x:Name="ConsoleNoteBox" Visibility="Collapsed"
+                                <!-- Shown while/after the console is told to
+                                     re-apply its network settings. -->
+                                <Border x:Name="IcsRestartBox" Visibility="Collapsed"
                                         Margin="0,12,0,0" CornerRadius="8" Padding="12"
                                         Background="{DynamicResource SurfaceBrush}"
                                         BorderBrush="{DynamicResource DividerBrush}"
@@ -287,16 +288,16 @@
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <Ellipse x:Name="ConsoleNoteDot" Grid.Column="0"
-                                                 Width="9" Height="9" VerticalAlignment="Top"
-                                                 Margin="0,4,0,0"
+                                        <Ellipse x:Name="IcsRestartDot" Grid.Column="0"
+                                                 Width="9" Height="9" VerticalAlignment="Center"
                                                  Fill="{DynamicResource StatusIdleBrush}"/>
-                                        <TextBlock x:Name="ConsoleNoteText" Grid.Column="1"
+                                        <TextBlock x:Name="IcsRestartText" Grid.Column="1"
                                                    Margin="9,0,0,0" FontSize="12.5"
                                                    TextWrapping="Wrap"
                                                    Foreground="{DynamicResource TextPrimaryBrush}"/>
                                     </Grid>
                                 </Border>
+
                             </StackPanel>
                         </StackPanel>
                     </Border>
