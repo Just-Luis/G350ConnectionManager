@@ -17,7 +17,6 @@ public partial class NetworkView : UserControl
 
     private readonly NetworkConfigService _net = new();
     private readonly IcsService _ics = new();
-    private readonly ConsoleNetworkService _console = new();
     private bool _subscribed;
     private bool _busy;
     private bool _icsBusy;
@@ -333,6 +332,7 @@ public partial class NetworkView : UserControl
         RenderIcsConflict(s, priv, console);
         RenderIcsConnectionList(s);
         RenderIcsActions(s);
+        RenderConsoleNote();
     }
 
     /// <summary>
@@ -428,7 +428,6 @@ public partial class NetworkView : UserControl
         _icsBusy = false;
         IcsCheckButton.IsEnabled = true;
 
-        await AlignRouteAsync(sharingActive: _icsSnapshot?.IsActive ?? enable);
         await App.Link.RefreshAsync();
         Render(App.Link.Current);
     }
@@ -476,55 +475,50 @@ public partial class NetworkView : UserControl
         RenderIcs(snapshot);
     }
 
-    // ---------------------------------------------------------- route repair
+    // -------------------------------------------------- console reconnect note
 
     /// <summary>
-    /// Repoints the console's default route to match the PC's actual address.
+    /// Explains what to do on the console, rather than doing it for them.
+    ///
+    /// The console's own USB Network Manager already adds BOTH addresses to usb0
+    /// and probes for 192.168.137.1 when services start, choosing the matching
+    /// default route automatically:
+    ///
+    ///     ip addr add 192.168.7.2/24   dev usb0
+    ///     ip addr add 192.168.137.2/24 dev usb0
+    ///     ping -c1 192.168.137.1 &amp;&amp; route via 192.168.137.1 || route via 192.168.7.1
+    ///
+    /// So the only action needed after the PC's address changes is to start the
+    /// services again. Repointing the route over SSH here would duplicate that
+    /// logic, drift from it, and be overwritten the next time services restart.
     /// </summary>
-    private async Task AlignRouteAsync(bool sharingActive)
+    private void RenderConsoleNote()
     {
-        var snapshot = App.Link.Current;
-        var host = snapshot.ConsoleIp;
+        var console = App.Link.Current;
 
-        if (string.IsNullOrEmpty(host))
+        if (console.Adapter is null)
         {
-            RouteBox.Visibility = Visibility.Collapsed;
+            ConsoleNoteBox.Visibility = Visibility.Collapsed;
             return;
         }
 
-        RouteBox.Visibility = Visibility.Visible;
-        RouteText.Text = "Console route — checking…";
-        RouteFixButton.Visibility = Visibility.Collapsed;
-        RouteDot.Fill = (Brush)FindResource("StatusIdleBrush");
+        var sharing = _icsSnapshot?.IsActive == true;
 
-        var (ok, message) = await _console.AlignDefaultRouteAsync(host, sharingActive);
+        ConsoleNoteBox.Visibility = sharing ? Visibility.Visible : Visibility.Collapsed;
+        if (!sharing)
+        {
+            // Nothing to say when sharing is off: .7.x is the normal setup.
+            return;
+        }
 
-        var internet = ok ? await _console.HasInternetAsync(host) : false;
+        ConsoleNoteText.Text =
+            "Start services on the console again ([A] Start Services). It adds "
+            + "192.168.137.2 and picks 192.168.137.1 as its gateway automatically, "
+            + "because it probes for the sharing address when it starts.";
 
-        RouteDot.Fill = (Brush)FindResource(
-            ok && internet ? "StatusOkBrush"
-            : ok ? "StatusWarnBrush"
-            : "StatusErrorBrush");
-
-        RouteText.Text = ok
-            ? (internet
-                ? $"Console is online via {ConsoleNetworkService.ExpectedGateway(sharingActive)}."
-                : $"Route set to {ConsoleNetworkService.ExpectedGateway(sharingActive)}, "
-                  + "but the console still cannot reach the internet.")
-            : message;
-
-        // Offer the manual fix when the automatic one could not run — most
-        // often because the console is not reachable on the expected address.
-        RouteFixButton.Visibility = ok && internet ? Visibility.Collapsed : Visibility.Visible;
-        RouteFixButton.IsEnabled = !_icsBusy;
-    }
-
-    private async void RouteFix_Click(object sender, RoutedEventArgs e)
-    {
-        var active = _icsSnapshot?.IsActive ?? false;
-        RouteFixButton.IsEnabled = false;
-        await AlignRouteAsync(active);
-        RouteFixButton.IsEnabled = true;
+        ConsoleNoteDot.Fill = console.IsReady
+            ? (Brush)FindResource("StatusOkBrush")
+            : (Brush)FindResource("StatusWarnBrush");
     }
 
     /// <summary>
@@ -537,11 +531,11 @@ public partial class NetworkView : UserControl
 
         if (s.IsActive && priv is not null && priv.LooksLikeConsole)
         {
+            // Informational, not alarming: this is the normal, working state.
             notes.Add(
-                $"The console adapter ({priv.Name}) is the shared side, so Windows "
-                + $"has assigned it {s.ScopeAddress ?? "192.168.137.1"} and will keep "
-                + "it there. While sharing is on, the console sits at .137.2, not .7.2 — "
-                + "the address in step 1 above does not apply.");
+                $"Sharing is on, so the console adapter is now at "
+                + $"{s.ScopeAddress ?? "192.168.137.1"} and the console is at 192.168.137.2. "
+                + "Step 1 shows the address for when sharing is off — this is expected.");
         }
 
         if (s.IsActive && priv is not null && !priv.LooksLikeConsole && console is not null)
