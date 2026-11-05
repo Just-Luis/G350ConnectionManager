@@ -52,14 +52,13 @@ public partial class HomeView : UserControl
         BannerHeadline.Text = s.Headline;
         BannerDetail.Text = s.IsReady ? $"{s.Detail} · {s.PingMs} ms" : s.Detail;
 
-        // This card is about the PC's adapter, so report the PC's own address.
-        // The console's address belongs in the banner, not here — showing .7.2
-        // here read as though the PC had been assigned the console's IP.
-        var pcIp = s.Adapter?.Ipv4;
+        // The card is labelled "Network" and follows step 1 of the setup flow,
+        // which is about the console's address — so this reports the console IP,
+        // not the PC adapter's.
         Step1Text.Text = s.IsReady
-            ? $"PC at {pcIp ?? "?"} · console {s.ConsoleIp}"
+            ? $"IP set to {s.ConsoleIp}"
             : s.AdapterFound
-                ? (pcIp is null ? "Adapter up, no address" : $"PC at {pcIp}")
+                ? "Adapter up, console silent"
                 : "Waiting for console";
 
         Step2Text.Text = s.InternetReachable
