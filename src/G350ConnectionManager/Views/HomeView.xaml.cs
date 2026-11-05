@@ -7,12 +7,35 @@ namespace G350ConnectionManager.Views;
 
 public partial class HomeView : UserControl
 {
+    private bool _subscribed;
+
     public HomeView()
     {
         InitializeComponent();
-        App.Link.Updated += OnLinkUpdated;
+
+        // Views are cached by MainWindow and re-attached when re-selected, so
+        // subscribing in the constructor is not enough: Unloaded fires when the
+        // view is navigated away from, and the cached instance is never
+        // reconstructed on return. Bind to Loaded/Unloaded instead.
+        Loaded += (_, _) => Subscribe();
+        Unloaded += (_, _) => Unsubscribe();
+
         Render(App.Link.Current);
-        Unloaded += (_, _) => App.Link.Updated -= OnLinkUpdated;
+    }
+
+    private void Subscribe()
+    {
+        if (_subscribed) return;
+        App.Link.Updated += OnLinkUpdated;
+        _subscribed = true;
+        Render(App.Link.Current);
+    }
+
+    private void Unsubscribe()
+    {
+        if (!_subscribed) return;
+        App.Link.Updated -= OnLinkUpdated;
+        _subscribed = false;
     }
 
     private void OnLinkUpdated(object? sender, LinkSnapshot snapshot) => Render(snapshot);
