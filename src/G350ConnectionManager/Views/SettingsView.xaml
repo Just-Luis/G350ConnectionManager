@@ -1,0 +1,80 @@
+<UserControl x:Class="G350ConnectionManager.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:G350ConnectionManager.Views">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="32,32,28,32">
+        <StackPanel MaxWidth="1000" HorizontalAlignment="Stretch">
+
+            <views:PageHeader Title="Settings"
+                              Subtitle="Look and feel. Changes apply instantly."/>
+
+            <!-- Theme -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,18,0,0">
+                <StackPanel>
+                    <TextBlock Text="Theme" Style="{StaticResource FieldLabelStyle}"/>
+
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton x:Name="WhiteTheme" Content="White" GroupName="Theme"
+                                     Style="{StaticResource SegmentButtonStyle}"
+                                     IsChecked="True" Checked="Theme_Changed"
+                                     BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"/>
+                        <RadioButton x:Name="BlackTheme" Content="Black" GroupName="Theme"
+                                     Style="{StaticResource SegmentButtonStyle}"
+                                     Margin="8,0,0,0" Checked="Theme_Changed"
+                                     BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Accent -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,18,0,0">
+                <StackPanel>
+                    <TextBlock Text="Highlight color" Style="{StaticResource FieldLabelStyle}"/>
+
+                    <WrapPanel x:Name="AccentPanel" Orientation="Horizontal"/>
+
+                    <TextBlock Text="Used for main buttons, switches and status. Backgrounds stay white or black."
+                               FontSize="13" Margin="0,14,0,0"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Sidebar -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,18,0,0">
+                <StackPanel>
+                    <TextBlock Text="Start with sidebar collapsed"
+                               FontSize="15" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Show only icons until you expand it."
+                               FontSize="13" Margin="0,4,0,12"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <CheckBox x:Name="CollapsedCheck" Content="Collapsed on launch"
+                              Style="{StaticResource ThemedCheckBoxStyle}"
+                              Checked="Collapsed_Changed" Unchecked="Collapsed_Changed"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Capture folders (placeholders for Stage 5/7) -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,18,0,0">
+                <StackPanel>
+                    <TextBlock Text="Capture folders" Style="{StaticResource FieldLabelStyle}"/>
+
+                    <TextBlock Text="Screenshots" FontSize="13" Margin="0,0,0,6"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <TextBox x:Name="ScreenshotFolderBox" Style="{StaticResource TextInputStyle}"
+                             Margin="0,0,0,12"/>
+
+                    <TextBlock Text="Recordings" FontSize="13" Margin="0,0,0,6"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <TextBox x:Name="RecordingFolderBox" Style="{StaticResource TextInputStyle}"/>
+
+                    <TextBlock Text="Used from Stage 5 onwards."
+                               FontSize="13" Margin="0,12,0,0"
+                               Foreground="{DynamicResource TextMutedBrush}"/>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
