@@ -17,6 +17,7 @@ public partial class NetworkView : UserControl
 
     private readonly NetworkConfigService _net = new();
     private readonly IcsService _ics = new();
+    private readonly ConsoleNetworkService _console = new();
     private bool _subscribed;
     private bool _busy;
     private bool _icsBusy;
@@ -331,6 +332,199 @@ public partial class NetworkView : UserControl
 
         RenderIcsConflict(s, priv, console);
         RenderIcsConnectionList(s);
+        RenderIcsActions(s);
+    }
+
+    /// <summary>
+    /// Shows only the action that makes sense for the current state, so the user
+    /// is never offered "turn on" while it is already on.
+    /// </summary>
+    private void RenderIcsActions(IcsSnapshot s)
+    {
+        var console = s.ConsoleConnection;
+        var canShare = console is not null && s.Connections.Count > 1;
+
+        IcsEnableButton.Visibility = s.IsActive || !canShare
+            ? Visibility.Collapsed : Visibility.Visible;
+        IcsDisableButton.Visibility = s.IsActive
+            ? Visibility.Visible : Visibility.Collapsed;
+
+        IcsEnableButton.IsEnabled = !_icsBusy && canShare;
+        IcsDisableButton.IsEnabled = !_icsBusy;
+
+        IcsActions.Visibility = canShare || s.IsActive
+            ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    // ------------------------------------------------------------- ics toggle
+
+    private async void IcsEnable_Click(object sender, RoutedEventArgs e)
+        => await ToggleSharingAsync(enable: true);
+
+    private async void IcsDisable_Click(object sender, RoutedEventArgs e)
+        => await ToggleSharingAsync(enable: false);
+
+    /// <summary>
+    /// Enables or disables sharing, then realigns the console's default route.
+    ///
+    /// The second step is not optional. ICS moves the PC adapter to
+    /// 192.168.137.1, but the console keeps a static default route via
+    /// 192.168.7.1 — a gateway that no longer exists. SSH keeps working (same
+    /// link, both addresses live on usb0) while internet silently fails, which
+    /// is exactly the kind of half-working state that is hard to diagnose.
+    /// </summary>
+    private async Task ToggleSharingAsync(bool enable)
+    {
+        if (_icsBusy) return;
+
+        var snapshot = _icsSnapshot;
+        var console = snapshot?.ConsoleConnection;
+        if (snapshot is null || console is null)
+        {
+            NetworkHint.Text = "Check internet sharing first.";
+            return;
+        }
+
+        // The source is whatever is currently carrying the internet; when
+        // enabling, prefer the connection that already has a gateway.
+        var source = enable
+            ? (snapshot.PublicConnection ?? PickInternetSource(snapshot, console))
+            : snapshot.PublicConnection;
+
+        if (enable && source is null)
+        {
+            NetworkHint.Text = "No internet connection was found to share. "
+                             + "Connect this PC to Wi-Fi or Ethernet first.";
+            return;
+        }
+
+        _icsBusy = true;
+        RenderIcsActions(snapshot);
+        IcsCheckButton.IsEnabled = false;
+
+        NetworkHint.Text = enable
+            ? "Turning on sharing… approve the Windows prompt if it appears."
+            : "Turning off sharing… approve the Windows prompt if it appears.";
+
+        var (ok, message) = await _ics.SetSharingAsync(
+            enable,
+            source?.Name ?? snapshot.PublicConnection?.Name ?? string.Empty,
+            console.Name);
+
+        if (!ok)
+        {
+            _icsBusy = false;
+            NetworkHint.Text = message;
+            IcsCheckButton.IsEnabled = true;
+            await RefreshIcsAsync();
+            return;
+        }
+
+        // The elevated helper already waited for Windows to settle, so one
+        // refresh is enough here. Polling from the UI would raise a new UAC
+        // prompt on every read.
+        NetworkHint.Text = message + " Refreshing…";
+        await RefreshIcsAsync(quiet: true);
+        _icsBusy = false;
+        IcsCheckButton.IsEnabled = true;
+
+        await AlignRouteAsync(sharingActive: _icsSnapshot?.IsActive ?? enable);
+        await App.Link.RefreshAsync();
+        Render(App.Link.Current);
+    }
+
+    /// <summary>
+    /// Best guess at the adapter carrying the internet. The console adapter is
+    /// never a candidate: making it the source is the classic misconfiguration
+    /// this app exists to prevent.
+    /// </summary>
+    private static IcsConnection? PickInternetSource(IcsSnapshot s, IcsConnection console)
+    {
+        var candidates = s.Connections
+            .Where(c => c.IsConnected && !c.LooksLikeConsole && c.Name != console.Name)
+            .ToList();
+
+        // Prefer adapters whose driver description says Wi-Fi; adapter *names*
+        // are user-renamable ("WiFi" can become anything), descriptions are not.
+        static bool IsWifi(IcsConnection c) =>
+            c.DeviceName.Contains("wi-fi", StringComparison.OrdinalIgnoreCase)
+            || c.DeviceName.Contains("wireless", StringComparison.OrdinalIgnoreCase)
+            || c.DeviceName.Contains("802.11", StringComparison.OrdinalIgnoreCase)
+            || c.Name.Equals("WiFi", StringComparison.OrdinalIgnoreCase)
+            || c.Name.StartsWith("Wi-Fi", StringComparison.OrdinalIgnoreCase);
+
+        // Virtual switches are almost never the real internet path.
+        static bool IsVirtual(IcsConnection c) =>
+            c.DeviceName.Contains("virtual", StringComparison.OrdinalIgnoreCase)
+            || c.Name.Contains("vEthernet", StringComparison.OrdinalIgnoreCase);
+
+        return candidates.FirstOrDefault(IsWifi)
+               ?? candidates.FirstOrDefault(c => !IsVirtual(c))
+               ?? candidates.FirstOrDefault();
+    }
+
+    private async Task RefreshIcsAsync(bool quiet = false)
+    {
+        if (!quiet)
+        {
+            IcsStatusText.Text = "Checking internet sharing…";
+            IcsDot.Fill = (Brush)FindResource("StatusIdleBrush");
+        }
+
+        var snapshot = await _ics.ReadAsync();
+        _icsSnapshot = snapshot;
+        RenderIcs(snapshot);
+    }
+
+    // ---------------------------------------------------------- route repair
+
+    /// <summary>
+    /// Repoints the console's default route to match the PC's actual address.
+    /// </summary>
+    private async Task AlignRouteAsync(bool sharingActive)
+    {
+        var snapshot = App.Link.Current;
+        var host = snapshot.ConsoleIp;
+
+        if (string.IsNullOrEmpty(host))
+        {
+            RouteBox.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        RouteBox.Visibility = Visibility.Visible;
+        RouteText.Text = "Console route — checking…";
+        RouteFixButton.Visibility = Visibility.Collapsed;
+        RouteDot.Fill = (Brush)FindResource("StatusIdleBrush");
+
+        var (ok, message) = await _console.AlignDefaultRouteAsync(host, sharingActive);
+
+        var internet = ok ? await _console.HasInternetAsync(host) : false;
+
+        RouteDot.Fill = (Brush)FindResource(
+            ok && internet ? "StatusOkBrush"
+            : ok ? "StatusWarnBrush"
+            : "StatusErrorBrush");
+
+        RouteText.Text = ok
+            ? (internet
+                ? $"Console is online via {ConsoleNetworkService.ExpectedGateway(sharingActive)}."
+                : $"Route set to {ConsoleNetworkService.ExpectedGateway(sharingActive)}, "
+                  + "but the console still cannot reach the internet.")
+            : message;
+
+        // Offer the manual fix when the automatic one could not run — most
+        // often because the console is not reachable on the expected address.
+        RouteFixButton.Visibility = ok && internet ? Visibility.Collapsed : Visibility.Visible;
+        RouteFixButton.IsEnabled = !_icsBusy;
+    }
+
+    private async void RouteFix_Click(object sender, RoutedEventArgs e)
+    {
+        var active = _icsSnapshot?.IsActive ?? false;
+        RouteFixButton.IsEnabled = false;
+        await AlignRouteAsync(active);
+        RouteFixButton.IsEnabled = true;
     }
 
     /// <summary>

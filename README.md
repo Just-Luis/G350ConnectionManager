@@ -41,7 +41,7 @@ original design mock.
 | **2** | Read-only diagnostics (adapter detection, ping, SSH port, live status) | ✅ **Done** |
 | **3** | Adapter IP configuration (automatic & manual, with restore) | ✅ **Done** · 83/83 hardware tests passed |
 | 4a | Internet sharing — read-only status (adapter list, conflict warnings) | ✅ **Done** |
-| 4b | Internet sharing — enable/disable toggle | ⬜ Planned |
+| 4b | Internet sharing — enable/disable toggle + console route repair | ✅ **Done** |
 | 5 | Screen preview & screenshots | ⬜ Planned |
 | 6 | MJPEG streaming | ⬜ Planned |
 | 7 | Recording (MJPEG `.avi`) | ⬜ Planned |

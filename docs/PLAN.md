@@ -195,10 +195,21 @@ correctly reports "off (service idle)" vs "on (WiFi → Ethernet 2)".
 **Why split:** the COM API refuses to answer *at all* un-elevated (see §6b), so
 shipping a write path first would mean debugging blind.
 
-### Stage 4b — ICS Toggle  🌐 *highest risk*
-**Build:** Enable/Disable via the same elevated helper, target picker.
-**Test:** enable sharing, confirm PortMaster reachable on console, disable, confirm clean.
-**Risk:** **highest** — ICS rewrites adapter IPs. Isolated behind a proven read path.
+### Stage 4b — ICS Toggle  🌐  ✅ **DONE**
+**Build:** Enable/Disable via the same elevated helper, plus console route repair.
+**Test:** enable sharing, confirm internet on console, disable, confirm clean.
+**Risk:** high — ICS rewrites adapter IPs.
+
+Order was determined empirically: the **private** (target) side must be enabled
+before the **public** (source) side, and disabled in reverse.
+
+**ICS alone is not enough.** Measured on hardware: enabling sharing moves the
+PC adapter to `192.168.137.1` and the console gains `192.168.137.2`, but the
+console *keeps* its static default route via `192.168.7.1` — a gateway that no
+longer exists. SSH keeps working (both addresses live on `usb0`) while internet
+silently fails. Repointing the console's default route to `.137.1` fixes it, and
+pointing it back breaks it again, so the link is causal. Stage 4b therefore pairs
+the toggle with a console-side route change over SSH.
 
 ### Stage 5 — Screen Preview & Screenshots  📷
 **Build:** SSH session, grabber upload, frame reader, live preview, PNG capture, teardown.

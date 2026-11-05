@@ -14,9 +14,9 @@
     <AssemblyTitle>G350 Companion — Battle XP G350 Connection Manager</AssemblyTitle>
     <Company>Just-Luis</Company>
     <Copyright>MIT Licensed</Copyright>
-    <Version>0.4.0</Version>
-    <AssemblyVersion>0.4.0.0</AssemblyVersion>
-    <FileVersion>0.4.0.0</FileVersion>
+    <Version>0.4.1</Version>
+    <AssemblyVersion>0.4.1.0</AssemblyVersion>
+    <FileVersion>0.4.1.0</FileVersion>
 
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
@@ -28,6 +28,9 @@
       whether the ICS service (SharedAccess) is running. Small, first-party.
     -->
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.1" />
+    <!-- SSH/SFTP to the console. Needed here for the route repair, and reused
+         for screen capture and file transfer in later stages. -->
+    <PackageReference Include="SSH.NET" Version="2026.0.0" />
   </ItemGroup>
 
   <!--
