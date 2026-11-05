@@ -52,8 +52,15 @@ public partial class NetworkView : UserControl
         NetworkHint.Text = "Applying IP configuration arrives in Stage 3.";
     }
 
-    private void Test_Click(object sender, RoutedEventArgs e)
+    private async void Test_Click(object sender, RoutedEventArgs e)
     {
-        NetworkHint.Text = "Connection testing arrives in Stage 2.";
+        NetworkHint.Text = "Testing…";
+        var snapshot = await App.Link.RefreshAsync();
+
+        NetworkHint.Text = snapshot.IsReady
+            ? $"Console reachable at {snapshot.ConsoleIp} · {snapshot.PingMs} ms"
+            : snapshot.AdapterFound
+                ? "Adapter up, but the console did not answer. Start services on the console."
+                : "No USB adapter found. Check the cable and that the console is in PC mode.";
     }
 }

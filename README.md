@@ -6,14 +6,14 @@
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11%20x64-blue.svg)]()
 [![Built with](https://img.shields.io/badge/Built%20with-C%23%20%2F%20.NET%208%20WPF-purple.svg)]()
-[![Status](https://img.shields.io/badge/Status-Stage%201%20%E2%80%94%20Shell%20%26%20Design%20System-orange.svg)]()
+[![Status](https://img.shields.io/badge/Status-Stage%202%20%E2%80%94%20Diagnostics-brightgreen.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
 > [!NOTE]
 > **Work in progress.** This repository is being built up in nine independently testable
-> stages. Stage 1 (the UI shell and design system, shown below) is complete and runnable.
+> stages. Stages 1–2 (UI shell and live read-only diagnostics) are complete and runnable.
 > See **[docs/PLAN.md](docs/PLAN.md)** for the full roadmap.
 
 ---
@@ -38,7 +38,7 @@ original design mock.
 | Stage | Feature | Status |
 | :--- | :--- | :--- |
 | **1** | Shell & design system (navigation, themes, accent colours, settings persistence) | ✅ **Done** |
-| 2 | Read-only diagnostics (adapter detection, ping, SSH port, live status) | ⬜ Planned |
+| **2** | Read-only diagnostics (adapter detection, ping, SSH port, live status) | ✅ **Done** |
 | 3 | Adapter IP configuration (automatic & manual, with restore) | ⬜ Planned |
 | 4 | Internet sharing (ICS toggle, adapter pickers, conflict warnings) | ⬜ Planned |
 | 5 | Screen preview & screenshots | ⬜ Planned |

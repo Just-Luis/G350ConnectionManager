@@ -8,18 +8,30 @@
             <views:PageHeader Title="Your G350"
                               Subtitle="Connect, share internet and capture the screen in a few clicks."/>
 
-            <!-- Ready banner -->
+            <!-- Live status banner -->
             <Border Style="{StaticResource CardStyle}" Margin="0,18,0,0" Padding="16">
-                <StackPanel Orientation="Horizontal">
-                    <Ellipse Width="10" Height="10" Fill="{DynamicResource StatusIdleBrush}"
-                             VerticalAlignment="Center"/>
-                    <TextBlock Text="Console not connected"
-                               Margin="10,0,0,0" FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextPrimaryBrush}"/>
-                    <TextBlock Text="· plug in the USB cable and start services on the console"
-                               Margin="6,0,0,0" FontSize="14"
-                               Foreground="{DynamicResource TextSecondaryBrush}"/>
-                </StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Ellipse x:Name="BannerDot" Width="10" Height="10"
+                             VerticalAlignment="Center"
+                             Fill="{DynamicResource StatusIdleBrush}"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0"
+                                VerticalAlignment="Center">
+                        <TextBlock x:Name="BannerHeadline" Text="Checking connection…"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock x:Name="BannerDetail" Margin="6,0,0,0" FontSize="14"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                    <Button Grid.Column="2" Content="Test connection"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Click="Test_Click"/>
+                </Grid>
             </Border>
 
             <!-- Three steps -->
@@ -34,7 +46,9 @@
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Network" Style="{StaticResource SectionTitleStyle}" Margin="0,10,0,0"/>
-                        <TextBlock Text="Waiting for console" Style="{StaticResource BodyTextStyle}" Margin="0,4,0,0"/>
+                        <TextBlock x:Name="Step1Text" Text="Checking…"
+                                   Style="{StaticResource BodyTextStyle}" Margin="0,4,0,0"
+                                   TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                 </Border>
 
@@ -48,7 +62,9 @@
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Internet sharing" Style="{StaticResource SectionTitleStyle}" Margin="0,10,0,0"/>
-                        <TextBlock Text="Off" Style="{StaticResource BodyTextStyle}" Margin="0,4,0,0"/>
+                        <TextBlock x:Name="Step2Text" Text="Checking…"
+                                   Style="{StaticResource BodyTextStyle}" Margin="0,4,0,0"
+                                   TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                 </Border>
 
@@ -62,30 +78,14 @@
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Screen" Style="{StaticResource SectionTitleStyle}" Margin="0,10,0,0"/>
-                        <TextBlock Text="Not streaming" Style="{StaticResource BodyTextStyle}" Margin="0,4,0,0"/>
+                        <TextBlock Text="Available in Stage 5"
+                                   Style="{StaticResource BodyTextStyle}" Margin="0,4,0,0"/>
                     </StackPanel>
                 </Border>
             </UniformGrid>
 
-            <!-- Screen quick actions -->
-            <Border Style="{StaticResource CardStyle}" Margin="0,18,0,0">
-                <StackPanel>
-                    <TextBlock Text="Screen" Style="{StaticResource SectionTitleStyle}"/>
-                    <TextBlock Text="Take a screenshot, record a clip or start a live stream."
-                               Style="{StaticResource BodyTextStyle}" Margin="0,4,0,14"/>
-                    <StackPanel Orientation="Horizontal">
-                        <Button Content="Take screenshot" Style="{StaticResource SecondaryButtonStyle}"
-                                Margin="0,0,10,0" IsEnabled="False"/>
-                        <Button Content="Start recording" Style="{StaticResource SecondaryButtonStyle}"
-                                Margin="0,0,10,0" IsEnabled="False"/>
-                        <Button Content="Start streaming" Style="{StaticResource PrimaryButtonStyle}"
-                                IsEnabled="False"/>
-                    </StackPanel>
-                    <TextBlock Text="Available once the console is connected (Stage 5)."
-                               FontSize="13" Margin="0,12,0,0"
-                               Foreground="{DynamicResource TextMutedBrush}"/>
-                </StackPanel>
-            </Border>
+            <!-- Diagnostics -->
+            <views:DiagnosticsPanel Margin="0,18,0,0"/>
 
         </StackPanel>
     </ScrollViewer>
