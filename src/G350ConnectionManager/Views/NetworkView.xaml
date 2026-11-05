@@ -164,26 +164,106 @@
                     <TextBlock Text="Give the G350 your PC connection"
                                Style="{StaticResource BodyTextStyle}" Margin="0,0,0,16"/>
 
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+                    <!-- ICS status. Reading ICS needs elevation, so nothing is
+                         shown until the user explicitly asks for it. -->
+                    <Border x:Name="IcsPanel" CornerRadius="10" Padding="14"
+                            Background="{DynamicResource RaisedBrush}"
+                            BorderBrush="{DynamicResource DividerBrush}"
+                            BorderThickness="1">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
 
-                        <StackPanel Grid.Column="0" Margin="0,0,10,0">
-                            <TextBlock Text="Share from" Style="{StaticResource FieldLabelStyle}"/>
-                            <ComboBox x:Name="ShareFromCombo" Style="{StaticResource ThemedComboBoxStyle}"
-                                      IsEnabled="False"/>
+                                <Ellipse x:Name="IcsDot" Grid.Column="0" Width="9" Height="9"
+                                         VerticalAlignment="Center"
+                                         Fill="{DynamicResource StatusIdleBrush}"/>
+
+                                <TextBlock x:Name="IcsStatusText" Grid.Column="1"
+                                           Margin="9,0,0,0" VerticalAlignment="Center"
+                                           FontSize="13" FontWeight="SemiBold"
+                                           Text="Internet sharing — not checked"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                                <Button x:Name="IcsCheckButton" Grid.Column="2"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Content="Check"
+                                        Padding="14,6" FontSize="12.5"
+                                        Click="IcsCheck_Click"/>
+                            </Grid>
+
+                            <!-- Filled in once a snapshot arrives. -->
+                            <StackPanel x:Name="IcsDetail" Visibility="Collapsed" Margin="0,12,0,0">
+                                <Border Background="{DynamicResource SurfaceBrush}"
+                                        CornerRadius="8" Padding="12"
+                                        BorderBrush="{DynamicResource DividerBrush}"
+                                        BorderThickness="1">
+                                    <StackPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Share from"
+                                                       Style="{StaticResource FieldLabelStyle}"
+                                                       Margin="0,0,16,0"/>
+                                            <TextBlock x:Name="IcsSourceText" Grid.Column="1"
+                                                       FontSize="13"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                                       TextWrapping="Wrap" Text="—"/>
+                                        </Grid>
+                                        <Grid Margin="0,8,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Share to"
+                                                       Style="{StaticResource FieldLabelStyle}"
+                                                       Margin="0,0,16,0"/>
+                                            <TextBlock x:Name="IcsTargetText" Grid.Column="1"
+                                                       FontSize="13"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                                       TextWrapping="Wrap" Text="—"/>
+                                        </Grid>
+                                        <Grid Margin="0,8,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="ICS address"
+                                                       Style="{StaticResource FieldLabelStyle}"
+                                                       Margin="0,0,16,0"/>
+                                            <TextBlock x:Name="IcsScopeText" Grid.Column="1"
+                                                       FontSize="13" FontFamily="Consolas"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       Text="—"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- The .7.x vs .137.x conflict, stated plainly. -->
+                                <Border x:Name="IcsConflictBox" Visibility="Collapsed"
+                                        Margin="0,10,0,0" CornerRadius="8" Padding="12"
+                                        Background="{DynamicResource WarnSoftBrush}"
+                                        BorderBrush="{DynamicResource StatusWarnBrush}"
+                                        BorderThickness="1">
+                                    <TextBlock x:Name="IcsConflictText"
+                                               FontSize="12.5" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                </Border>
+
+                                <TextBlock x:Name="IcsConnectionsText"
+                                           Margin="0,10,0,0" FontSize="12"
+                                           FontFamily="Consolas" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                            </StackPanel>
                         </StackPanel>
+                    </Border>
 
-                        <StackPanel Grid.Column="1" Margin="10,0,0,0">
-                            <TextBlock Text="Share to" Style="{StaticResource FieldLabelStyle}"/>
-                            <ComboBox x:Name="ShareToCombo" Style="{StaticResource ThemedComboBoxStyle}"
-                                      IsEnabled="False"/>
-                        </StackPanel>
-                    </Grid>
-
-                    <TextBlock Text="Internet sharing arrives in Stage 4."
+                    <TextBlock Text="Enabling and disabling sharing arrives with Stage 4b."
                                FontSize="13" Margin="0,14,0,0"
                                Foreground="{DynamicResource TextMutedBrush}"/>
                 </StackPanel>

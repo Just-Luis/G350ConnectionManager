@@ -187,11 +187,18 @@ live status pill, diagnostics panel with per-stage verdicts.
 **Test:** apply `192.168.7.1`, verify in `ncpa.cpl`, restore, verify gone.
 **Risk:** medium — first mutation. Reversible by design; test on a spare adapter first.
 
-### Stage 4 — Internet Sharing (ICS)  🌐 *highest risk*
-**Build:** source/target pickers, COM toggle, conflict detection and warnings.
+### Stage 4a — ICS Status (read-only)  👁️  ✅ **DONE**
+**Build:** `IcsService` + `--ics-probe` elevated helper, status panel with
+source/target, scope address, connection list, and explicit conflict warnings.
+**Test:** read succeeds with elevation, degrades honestly when declined,
+correctly reports "off (service idle)" vs "on (WiFi → Ethernet 2)".
+**Why split:** the COM API refuses to answer *at all* un-elevated (see §6b), so
+shipping a write path first would mean debugging blind.
+
+### Stage 4b — ICS Toggle  🌐 *highest risk*
+**Build:** Enable/Disable via the same elevated helper, target picker.
 **Test:** enable sharing, confirm PortMaster reachable on console, disable, confirm clean.
-**Risk:** **highest** — ICS rewrites adapter IPs. Isolated in `IcsManager`, staged last
-among the network features so Stages 2–3 are already trusted.
+**Risk:** **highest** — ICS rewrites adapter IPs. Isolated behind a proven read path.
 
 ### Stage 5 — Screen Preview & Screenshots  📷
 **Build:** SSH session, grabber upload, frame reader, live preview, PNG capture, teardown.
