@@ -19,11 +19,33 @@ public partial class DiagnosticsPanel : UserControl
         "Internet"
     };
 
+    private bool _subscribed;
+
     public DiagnosticsPanel()
     {
         InitializeComponent();
-        App.Link.Updated += OnLinkUpdated;
+
+        // Same reason as HomeView: MainWindow caches views, so a constructor
+        // subscription dies the first time the view is navigated away from.
+        Loaded += (_, _) => Subscribe();
+        Unloaded += (_, _) => Unsubscribe();
+
         Render(App.Link.Current);
+    }
+
+    private void Subscribe()
+    {
+        if (_subscribed) return;
+        App.Link.Updated += OnLinkUpdated;
+        _subscribed = true;
+        Render(App.Link.Current);
+    }
+
+    private void Unsubscribe()
+    {
+        if (!_subscribed) return;
+        App.Link.Updated -= OnLinkUpdated;
+        _subscribed = false;
     }
 
     private void OnLinkUpdated(object? sender, LinkSnapshot snapshot) => Render(snapshot);
@@ -65,7 +87,4 @@ public partial class DiagnosticsPanel : UserControl
         ProbeState.Failed => "StatusErrorBrush",
         _ => "StatusIdleBrush"
     });
-
-    private void OnUnloaded(object sender, RoutedEventArgs e)
-        => App.Link.Updated -= OnLinkUpdated;
 }
