@@ -224,6 +224,91 @@ among the network features so Stages 2–3 are already trusted.
 
 ---
 
+## 6b. Hardware Probe — findings that change later stages
+
+Captured against a live console (Debian 13 trixie, OpenSSH 10.0p2, Python 3.13.5)
+while planning Stage 4. Each of these was verified, not assumed.
+
+### Credentials & transport
+
+| Item | Value |
+| :--- | :--- |
+| SSH/SFTP | `ark@192.168.7.2`, password `ark`, port 22 |
+| `ark` groups | `sudo`, `video`, `render`, `input`, `netdev`, `audio`, `adm` |
+| sudo | passwordless pipe works: `echo ark \| sudo -S -p '' …` |
+| SSH algs | `curve25519-sha256`, `rsa-sha2-512/256`, `ssh-ed25519`, `aes128/256-gcm`, `chacha20-poly1305` |
+
+All of these are supported by SSH.NET, so **no algorithm workaround is needed**
+for Stages 5–8.
+
+### Screen capture works *without* root
+
+`/dev/fb0` is `crw-rw---- root:video`, and `ark` is in `video`. A raw read of a
+full frame succeeds as `ark` — **no sudo, no password on the wire.** The
+existing `Stream_Screen.py` pipes the password into `sudo -S` on every run,
+which is unnecessary; the new app can avoid that entirely.
+
+The bundled DRM/KMS grabber (used for ES/RetroArch) also ran unprivileged and
+produced 19 valid 640×480 BGRA frames in 4 s.
+
+### Performance — measured, not estimated
+
+| Path | Bytes | Time | Throughput |
+| :--- | :--- | :--- | :--- |
+| raw frame (640×480×4) | 1,228,800 | ~150 ms | ~8 MB/s |
+| raw, base64 over SSH | 1,638,400 | 169 ms | 9.4 MB/s |
+| `gzip -1 \| base64` | 36,100 | 86 ms | 408 KB/s |
+| `gzip -6 \| base64` | 14,420 | 118 ms | 119 KB/s |
+
+A text/TUI screen compresses to **2.2 %** of raw (1.23 MB → 36 KB).
+A round trip costs ~60 ms of latency, so **8–12 fps is the realistic ceiling**
+for a fetch-then-display loop, and ~20 fps if the console pushes a continuous
+stream after the first frame.
+
+**Decision for Stage 6:** pipe the grabber over SSH with `gzip`. Never send raw
+BGRA; never spawn one SSH command per frame.
+
+### Framebuffer facts
+
+| Item | Value |
+| :--- | :--- |
+| Geometry | 640×480, 32 bpp, stride 2560 (== width×4, no padding) |
+| Pixel order | **BGRA** |
+| Modes | `U:640x480p-0` (single mode) |
+| Double buffering | none — `fb0` is a single static buffer |
+
+Because there is no page-flip, a capture taken mid-write can tear. Frames that
+look identical are a normal result of a static screen, not a failed capture.
+
+### Stage 4 (ICS) — a hard constraint found early
+
+The `HNetCfg.HNetShare` COM API **requires elevation**:
+
+* un-elevated, `EnumEveryConnection` returns **1 null entry** and both
+  `NetConnectionProps` / `INetSharingConfigurationForINetConnection` throw
+  `NullReferenceException`
+* `EnumPublicConnections` / `EnumPrivateConnections` throw
+  **`E_ACCESSDENIED` (0x80070005)**
+
+So ICS cannot even be *inspected* from the `asInvoker` app. Stage 4 must move
+its whole read/write path into an elevated helper, and the UI has to show
+"needs elevation to read" rather than an empty picker.
+
+Current machine state for that stage: `SharedAccess` is **Running**,
+`ScopeAddress = 192.168.137.1`, and the internet source is **WiFi**
+(`ifIndex 7`, gateway `192.168.1.1`). The RNDIS console adapter must be the
+*private* side, which is what forces the console to `192.168.137.2` — the
+`.7.x` vs `.137.x` conflict already tracked as Issue #3.
+
+### Adapter naming is unstable
+
+The RNDIS adapter was `Ethernet 2` → `Ethernet 4` → `Ethernet 5` → `Ethernet 2`
+across replugs, within the same day. Anything that caches the name is wrong;
+always enumerate and match by `InterfaceDescription` (which stays
+`Remote NDIS based Internet Sharing Device`).
+
+---
+
 ## 7. Feature Detail
 
 ### 7.1 Home — the dashboard
