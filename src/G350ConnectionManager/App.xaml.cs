@@ -29,6 +29,17 @@ public partial class App : Application
             return;
         }
 
+        if (e.Args.Length > 0 && e.Args[0] == IcsService.ToggleArgument)
+        {
+            // --ics-toggle <enable|disable> <source> <target> <out.json>
+            var outPath = e.Args.Length > 4 ? e.Args[4] : string.Empty;
+            var code = string.IsNullOrEmpty(outPath)
+                ? 2
+                : IcsService.RunToggle(e.Args, outPath);
+            Shutdown(code);
+            return;
+        }
+
         Settings = AppSettings.Load();
 
         Theme = new ThemeService(this);
