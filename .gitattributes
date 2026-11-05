@@ -1,0 +1,17 @@
+# Normalise line endings automatically
+* text=auto
+
+# Enforce strict LF on cross-platform sources and docs
+*.cs   text eol=lf
+*.xaml text eol=lf
+*.csproj text eol=lf
+*.sln  text eol=lf
+*.md   text eol=lf
+*.yml  text eol=lf
+*.json text eol=lf
+*.sh   text eol=lf
+*.py   text eol=lf
+
+# Windows batch tools keep CRLF
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
