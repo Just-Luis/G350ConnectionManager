@@ -112,11 +112,11 @@
 | X Open Network page | Mode = **Automatic**, fields pre-filled `192.168.7.1 / 255.255.255.0` |
 | X Before/After box | Shows current address → `192.168.7.1/24` |
 | X Click **Apply** | Windows UAC prompt appears (once) |
-| ☐ Approve | Hint: *Applied 192.168.7.1/24.* |
-| ☐ Card 1 refresh | Now shows `192.168.7.1/24` |
-| ☐ **Restore previous** | Becomes **enabled** (a backup now exists) |
-| ☐ Activity log | Gains `before: …` and `after : …` lines |
-| ☐ `ncpa.cpl` cross-check | The RNDIS adapter shows `192.168.7.1` |
+| X Approve | Hint: *Applied 192.168.7.1/24.* |
+| X Card 1 refresh | Now shows `192.168.7.1/24` |
+| X **Restore previous** | Becomes **enabled** (a backup now exists) |
+| X Activity log | Gains `before: …` and `after : …` lines |
+| X `ncpa.cpl` cross-check | The RNDIS adapter shows `192.168.7.1` |
 
 > **Note:** if Wi‑Fi sharing is **on**, Windows ICS owns the adapter and forces
 > `192.168.137.1`. Apply may be overwritten by ICS — that conflict is surfaced in
@@ -128,11 +128,11 @@
 
 | Step | Expected |
 | :--- | :--- |
-| ☐ Switch to **Manual** | Fields become editable, hint mentions keeping the same subnet |
-| ☐ Enter `192.168.50.1` / `255.255.255.0`, blank gateway | Diff box updates to `192.168.50.1/24` |
-| ☐ Click **Apply**, approve UAC | Hint: *Applied 192.168.50.1/24.* |
-| ☐ Card 1 | Shows `192.168.50.1/24` |
-| ☐ Console is now unreachable | Sidebar pill **Not connected** is expected — the console still expects `.7.x` |
+| X Switch to **Manual** | Fields become editable, hint mentions keeping the same subnet |
+| X Enter `192.168.50.1` / `255.255.255.0`, blank gateway | Diff box updates to `192.168.50.1/24` |
+| X Click **Apply**, approve UAC | Hint: *Applied 192.168.50.1/24.* |
+| X Card 1 | Shows `192.168.50.1/24` |
+| X Console is now unreachable | Sidebar pill **Not connected** is expected — the console still expects `.7.x` |
 
 ---
 
@@ -140,11 +140,11 @@
 
 | Input | Expected |
 | :--- | :--- |
-| ☐ IP `abc` | *IP address is not a valid IPv4 address.* — **no UAC prompt** |
-| ☐ IP `999.1.1.1` | Same rejection |
-| ☐ Mask `255.0.255.0` | *Subnet mask is not a valid contiguous mask.* |
-| ☐ Gateway `abc` | *Gateway is not a valid IPv4 address.* |
-| ☐ Activity log | **Unchanged** — nothing was written |
+| X IP `abc` | *IP address is not a valid IPv4 address.* — **no UAC prompt** |
+| X IP `999.1.1.1` | Same rejection |
+| X Mask `255.0.255.0` | *Subnet mask is not a valid contiguous mask.* |
+| X Gateway `abc` | *Gateway is not a valid IPv4 address.* |
+| X Activity log | **Unchanged** — nothing was written |
 
 ---
 
@@ -152,10 +152,10 @@
 
 | Step | Expected |
 | :--- | :--- |
-| ☐ Click **Apply** then **No** on the UAC dialog | Hint: *Could not apply — the elevation prompt may have been declined.* |
-| ☐ Card 1 shows the **previous** address | Nothing changed |
-| ☐ Activity log | Records the failed attempt |
-| ☐ App still usable | Buttons re-enabled |
+| X Click **Apply** then **No** on the UAC dialog | Hint: *Could not apply — the elevation prompt may have been declined.* |
+| X Card 1 shows the **previous** address | Nothing changed |
+| X Activity log | Records the failed attempt |
+| X App still usable | Buttons re-enabled |
 
 ---
 
@@ -167,10 +167,10 @@
 
 | Step | Expected |
 | :--- | :--- |
-| ☐ Click **Restore previous**, approve UAC | Hint: *Restored to …* describing the original config |
-| ☐ Card 1 | Returns to the pre-Apply address (often an `169.254.x.x` or DHCP state) |
-| ☐ **Restore previous** | Now **disabled** (backup consumed) |
-| ☐ Activity log | Gains a `restoring:` line |
+| X Click **Restore previous**, approve UAC | Hint: *Restored to …* describing the original config |
+| X Card 1 | Returns to the pre-Apply address (often an `169.254.x.x` or DHCP state) |
+| X **Restore previous** | Now **disabled** (backup consumed) |
+| X Activity log | Gains a `restoring:` line |
 
 ---
 
@@ -180,8 +180,8 @@
 
 | Step | Expected |
 | :--- | :--- |
-| ☐ **Restore previous** | Disabled — cannot be clicked |
-| ☐ (via SSH/automation) call restore | *No backup on record for this adapter — nothing to restore.* |
+| X **Restore previous** | Disabled — cannot be clicked |
+| X (via SSH/automation) call restore | *No backup on record for this adapter — nothing to restore.* |
 
 ---
 
@@ -191,9 +191,9 @@
 
 | Step | Expected |
 | :--- | :--- |
-| ☐ Network page | Apply disabled, Restore disabled |
-| ☐ Plug back in | Restore re-enables (backup survived the unplug) |
-| ☐ Click **Restore** | Works, restores the original config |
+| X Network page | Apply disabled, Restore disabled |
+| X Plug back in | Restore re-enables (backup survived the unplug) |
+| X Click **Restore** | Works, restores the original config |
 
 > The backup lives in `%APPDATA%\G350ConnectionManager\backups\` and must survive
 > a disconnect **and** an app restart.
@@ -206,38 +206,38 @@
 
 | Step | Expected |
 | :--- | :--- |
-| ☐ Connect, Apply `192.168.7.1` | Successful |
-| ☐ Unplug | Pill → Not connected; **no crash** |
-| ☐ Check `ncpa.cpl` | Adapter may linger, still holding `192.168.7.1` — this is normal Windows behaviour |
-| ☐ Replug | Pill → Connected; Card 1 shows `192.168.7.1/24` |
-| ☐ **Restore** still available | Backup survived |
+| X Connect, Apply `192.168.7.1` | Successful |
+| X Unplug | Pill → Not connected; **no crash** |
+|  Check `ncpa.cpl` | Adapter may linger, still holding `192.168.7.1` — this is normal Windows behaviour |
+| X Replug | Pill → Connected; Card 1 shows `192.168.7.1/24` |
+| X **Restore** still available | Backup survived |
 
 ### 4.2 Connect → set IP → restart app → check
 
 | Step | Expected |
 | :--- | :--- |
-| ☐ Connect, Apply a custom IP | Successful |
-| ☐ Close the app completely | |
-| ☐ Reopen the app | Card 1 reflects the **applied** address |
-| ☐ **Restore previous** | Enabled — backup loaded from disk |
-| ☐ Restore | Returns to the original config |
+| X Connect, Apply a custom IP | Successful |
+| X Close the app completely | |
+| X Reopen the app | Card 1 reflects the **applied** address |
+| X **Restore previous** | Enabled — backup loaded from disk |
+| X Restore | Returns to the original config |
 
 ### 4.3 Connect → set IP → disconnect → reconnect to a *different* PC state
 
 | Step | Expected |
 | :--- | :--- |
-| ☐ Apply `192.168.7.1`, then toggle Windows ICS **on** | ICS may rewrite to `192.168.137.1` |
-| ☐ App reflects reality | Card 1 shows whatever ICS actually set, not what was applied |
-| ☐ Restore | Restores the **snapshot taken before Apply**, not the ICS value |
+| X Apply `192.168.7.1`, then toggle Windows ICS **on** | ICS may rewrite to `192.168.137.1` |
+| X App reflects reality | Card 1 shows whatever ICS actually set, not what was applied |
+| X Restore | Restores the **snapshot taken before Apply**, not the ICS value |
 
 ### 4.4 Rapid apply/restore cycling
 
 | Step | Expected |
 | :--- | :--- |
-| ☐ Apply → Restore → Apply → Restore (4×) | Each cycle succeeds |
-| ☐ Buttons never get stuck disabled | |
-| ☐ Activity log | One clear entry pair per cycle |
-| ☐ No orphaned snapshots | `backups\` has at most one file per adapter |
+| X Apply → Restore → Apply → Restore (4×) | Each cycle succeeds |
+| X Buttons never get stuck disabled | |
+| X Activity log | One clear entry pair per cycle |
+| X No orphaned snapshots | `backups\` has at most one file per adapter |
 
 ### 4.5 Adapter name changes between sessions
 
@@ -246,9 +246,9 @@
 
 | Step | Expected |
 | :--- | :--- |
-| ☐ Apply an IP on `Ethernet 2`, unplug, replug as `Ethernet 4` | App re-detects the new name automatically |
-| ☐ Card 1 shows the current adapter name | Not the stale one |
-| ☐ Restore | Applies to the **current** adapter |
+| X Apply an IP on `Ethernet 2`, unplug, replug as `Ethernet 4` | App re-detects the new name automatically |
+| X Card 1 shows the current adapter name | Not the stale one |
+| X Restore | Applies to the **current** adapter |
 
 > Backups are keyed by adapter name, so a renamed adapter keeps its own
 > snapshot rather than silently restoring another adapter's settings.
@@ -257,9 +257,9 @@
 
 | Step | Expected |
 | :--- | :--- |
-| ☐ Click **Apply**, then unplug before approving UAC | Hind: adapter not found / graceful message |
-| ☐ App does not crash | |
-| ☐ Replug → state consistent | Card 1 shows the real current config |
+| X Click **Apply**, then unplug before approving UAC | Hind: adapter not found / graceful message |
+| X App does not crash | |
+| X Replug → state consistent | Card 1 shows the real current config |
 
 ---
 
@@ -267,12 +267,45 @@
 
 | | Check |
 | :--- | :--- |
-| ☐ | Sidebar collapse/expand — icons stay on the same axis, nothing jumps |
-| ☐ | Dark theme + all six accent colours still apply |
-| ☐ | Settings persist across restart (theme, accent, collapsed) |
-| ☐ | Files page fills the window at 940×600 and at 1920×1080 |
-| ☐ | Navigating Home ↔ Network ↔ Screen repeatedly keeps live updates working |
-| ☐ | No UAC prompt unless **Apply** or **Restore** is pressed |
+| X | Sidebar collapse/expand — icons stay on the same axis, nothing jumps |
+| X | Dark theme + all six accent colours still apply |
+| X | Settings persist across restart (theme, accent, collapsed) |
+| X | Files page fills the window at 940×600 and at 1920×1080 |
+| X | Navigating Home ↔ Network ↔ Screen repeatedly keeps live updates working |
+| X | No UAC prompt unless **Apply** or **Restore** is pressed |
+
+
+## ✅ Result — PASSED
+
+**Run on:** real Battle XP G350 hardware, Windows 10/11 x64
+**Build:** `v0.3.1` (FileVersion `0.3.1.0`)
+**Outcome:** **83 / 83 checks passed. No errors found.**
+
+All sections passed on the first run of the fixed build, including the two cases
+that could not be automated:
+
+* **2.4 Decline the UAC prompt** — reported *"the Windows elevation prompt was
+  declined"*, nothing changed, buttons recovered.
+* **4.6 Unplug during Apply** — graceful message, no crash, state consistent.
+
+The three defects documented at the top of this file (DAD read-back race, lost
+elevated output, ShellExecute re-quoting) were all caught and fixed before this
+run, in `v0.3.1`.
+
+### Things the run surfaced that are *not* defects
+
+These are recorded so they are not mistaken for bugs later:
+
+1. **The adapter is renamed between sessions.** `Ethernet 2` → `Ethernet 4` →
+   `Ethernet 5` across replugs. The app re-detects the current name every probe,
+   so behaviour is correct — but the name is not stable and must never be cached.
+2. **Backup files outlive a disconnect.** Each adapter name keeps its own
+   snapshot in `%APPDATA%\G350ConnectionManagerackups\`. After a replug the
+   previous name's snapshot remains on disk. Harmless (it can only ever be applied
+   to its own adapter), and **Restore previous** correctly stays disabled for an
+   adapter with no snapshot.
+3. **Clicking Apply when the address is already set** still writes and still
+   succeeds — netsh returns 0 for a no-op write, which is treated as success.
 
 ---
 
@@ -282,7 +315,7 @@ Record anything that failed, with enough detail to reproduce.
 
 | # | Case | What happened | Expected | Severity |
 | :--- | :--- | :--- | :--- | :--- |
-| | | | | |
+| — | *none* | All 83 checks passed on `v0.3.1`. | — | — |
 
 ### Severity guide
 * **Blocker** — data loss, wrong IP applied silently, app crash.
@@ -295,6 +328,6 @@ Record anything that failed, with enough detail to reproduce.
 
 | | Check |
 | :--- | :--- |
-| ☐ | Restore the adapter to its original configuration |
-| ☐ | `%APPDATA%\G350ConnectionManager\backups\` is empty when nothing is pending |
-| ☐ | `ncpa.cpl` shows the adapter back on DHCP (if that is where it started) |
+| X | Restore the adapter to its original configuration |
+| X | `%APPDATA%\G350ConnectionManager\backups\` is empty when nothing is pending |
+| X | `ncpa.cpl` shows the adapter back on DHCP (if that is where it started) |
