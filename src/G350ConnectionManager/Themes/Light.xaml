@@ -28,6 +28,8 @@
     <!-- Status -->
     <SolidColorBrush x:Key="StatusOkBrush"       Color="#16A34A"/>
     <SolidColorBrush x:Key="StatusWarnBrush"     Color="#D97706"/>
+    <!-- 20% tint of the warn colour, for callout backgrounds. -->
+    <SolidColorBrush x:Key="WarnSoftBrush"       Color="#D9770633"/>
     <SolidColorBrush x:Key="StatusErrorBrush"    Color="#B00020"/>
     <SolidColorBrush x:Key="StatusIdleBrush"     Color="#9A9A9A"/>
 

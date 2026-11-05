@@ -16,8 +16,11 @@ public partial class NetworkView : UserControl
     private bool _loading = true;
 
     private readonly NetworkConfigService _net = new();
+    private readonly IcsService _ics = new();
     private bool _subscribed;
     private bool _busy;
+    private bool _icsBusy;
+    private IcsSnapshot? _icsSnapshot;
 
     public NetworkView()
     {
@@ -245,5 +248,150 @@ public partial class NetworkView : UserControl
             : snapshot.AdapterFound
                 ? "Adapter up, but the console did not answer. Start services on the console."
                 : "No USB adapter found. Check the cable and that the console is in PC mode.";
+    }
+
+    // ----------------------------------------------------------- ics status
+
+    /// <summary>
+    /// Reading ICS requires elevation, so this is never automatic: a UAC prompt
+    /// on page load would be hostile. The user asks for it explicitly.
+    /// </summary>
+    private async void IcsCheck_Click(object sender, RoutedEventArgs e)
+    {
+        if (_icsBusy) return;
+
+        _icsBusy = true;
+        IcsCheckButton.IsEnabled = false;
+        IcsCheckButton.Content = "Checking…";
+        IcsStatusText.Text = "Checking internet sharing…";
+        IcsDot.Fill = (Brush)FindResource("StatusIdleBrush");
+
+        var snapshot = await _ics.ReadAsync();
+        _icsSnapshot = snapshot;
+
+        _icsBusy = false;
+        IcsCheckButton.IsEnabled = true;
+        IcsCheckButton.Content = "Refresh";
+
+        RenderIcs(snapshot);
+        UpdateActivityLog();
+    }
+
+    private void RenderIcs(IcsSnapshot s)
+    {
+        if (!s.Ok)
+        {
+            IcsStatusText.Text = "Internet sharing — could not be read";
+            IcsDot.Fill = (Brush)FindResource("StatusWarnBrush");
+            IcsDetail.Visibility = Visibility.Collapsed;
+
+            // Surface the reason in the same hint area as other network errors.
+            NetworkHint.Text = s.Message;
+            return;
+        }
+
+        // A previous failure left its explanation in the step-1 hint. Clear it,
+        // otherwise a successful read still shows "approval is required".
+        if (IcsStatusText.Text.StartsWith("Internet sharing — could not be read", StringComparison.Ordinal))
+            NetworkHint.Text = string.Empty;
+
+        var pub = s.PublicConnection;
+        var priv = s.PrivateConnection;
+        var console = s.ConsoleConnection;
+
+        if (s.IsActive)
+        {
+            IcsStatusText.Text = $"Internet sharing is on ({pub!.Name} → {priv?.Name ?? "?"})";
+            IcsDot.Fill = (Brush)FindResource("StatusOkBrush");
+        }
+        else if (s.ServiceRunning)
+        {
+            IcsStatusText.Text = "Internet sharing is off (service idle)";
+            IcsDot.Fill = (Brush)FindResource("StatusIdleBrush");
+        }
+        else
+        {
+            IcsStatusText.Text = "Internet sharing is off";
+            IcsDot.Fill = (Brush)FindResource("StatusIdleBrush");
+        }
+
+        IcsDetail.Visibility = Visibility.Visible;
+
+        IcsSourceText.Text = pub is null
+            ? "nothing is being shared"
+            : $"{pub.Name}  ·  {pub.DeviceName}";
+
+        IcsTargetText.Text = priv is null
+            ? "—"
+            : $"{priv.Name}  ·  {priv.DeviceName}";
+
+        IcsScopeText.Text = s.ScopeAddress is null
+            ? "unknown"
+            : $"{s.ScopeAddress}  (ICS always uses this subnet)";
+
+        RenderIcsConflict(s, priv, console);
+        RenderIcsConnectionList(s);
+    }
+
+    /// <summary>
+    /// The .7.x vs .137.x conflict is the single most confusing part of this
+    /// feature, so it is stated explicitly instead of left to be discovered.
+    /// </summary>
+    private void RenderIcsConflict(IcsSnapshot s, IcsConnection? priv, IcsConnection? console)
+    {
+        var notes = new List<string>();
+
+        if (s.IsActive && priv is not null && priv.LooksLikeConsole)
+        {
+            notes.Add(
+                $"The console adapter ({priv.Name}) is the shared side, so Windows "
+                + $"has assigned it {s.ScopeAddress ?? "192.168.137.1"} and will keep "
+                + "it there. While sharing is on, the console sits at .137.2, not .7.2 — "
+                + "the address in step 1 above does not apply.");
+        }
+
+        if (s.IsActive && priv is not null && !priv.LooksLikeConsole && console is not null)
+        {
+            notes.Add(
+                $"Sharing is on, but it targets {priv.Name}, not the console adapter "
+                + $"({console.Name}). The G350 will not get internet access until sharing "
+                + "is moved to it.");
+        }
+
+        if (s.IsActive && console is not null && console.IsPublic)
+        {
+            notes.Add(
+                $"The console adapter ({console.Name}) is currently the internet *source*. "
+                + "That is almost certainly backwards — the G350 should be the destination.");
+        }
+
+        if (notes.Count == 0)
+        {
+            IcsConflictBox.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        IcsConflictText.Text = string.Join("\n\n", notes);
+        IcsConflictBox.Visibility = Visibility.Visible;
+    }
+
+    private void RenderIcsConnectionList(IcsSnapshot s)
+    {
+        if (s.Connections.Count == 0)
+        {
+            IcsConnectionsText.Text = "Windows reported no connections.";
+            return;
+        }
+
+        var lines = s.Connections.Select(c =>
+        {
+            var mark = c.SharingEnabled
+                ? (c.SharingType == 0 ? "▲ source" : "▼ dest  ")
+                : "        ";
+            var up = c.IsConnected ? "up     " : "down   ";
+            return $"{mark} {up} {c.Name}";
+        });
+
+        IcsConnectionsText.Text = string.Join("\n", lines);
     }
 }
