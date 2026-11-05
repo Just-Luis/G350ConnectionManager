@@ -303,7 +303,7 @@
                     </Border>
 
                     <TextBlock x:Name="IcsFooterText"
-                               Text="Sharing moves the PC adapter to 192.168.137.1. Start services on the console again afterwards so it picks up the new gateway."
+                               Text="Turning sharing on or off updates the console's network settings automatically."
                                FontSize="13" Margin="0,14,0,0" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextMutedBrush}"/>
                 </StackPanel>
