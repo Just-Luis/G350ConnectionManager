@@ -20,20 +20,18 @@
 
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-
-    <!--
-      Declared at project level (not only in Release) so `restore` produces an
-      assets file that already contains the win-x64 target. Without this, a
-      restore-then-build sequence (as CI does) fails with NETSDK1047.
-    -->
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
   <!--
     Self-contained single-file publish (decided in docs/PLAN.md §2).
     Run:  dotnet publish -c Release
+
+    RuntimeIdentifier lives here rather than in the main PropertyGroup so a
+    plain `dotnet build` stays framework-dependent (fast, no runtime packs),
+    while publish produces the portable single file.
   -->
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>

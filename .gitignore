@@ -8,6 +8,7 @@ obj/
 x64/
 x86/
 publish/
+out/
 *.user
 *.suo
 *.userprefs
