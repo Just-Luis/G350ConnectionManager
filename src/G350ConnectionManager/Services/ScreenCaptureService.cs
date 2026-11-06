@@ -41,14 +41,16 @@ public sealed class ScreenCaptureService : IDisposable
     private const string RemotePath = "/tmp/g350_grabber.py";
 
     private SshClient? _client;
-    private ShellStream? _shell;
-    private Stream? _stream;
+    private SshCommand? _command;
+    private Task? _pump;
+    private BlockingByteQueue? _queue;
+    private Queue<byte> _pending = new();
     private string? _host;
 
     /// <summary>Frames decoded so far, for the UI's counter.</summary>
     public int FrameCount { get; private set; }
 
-    public bool IsRunning => _stream is not null;
+    public bool IsRunning => _queue is not null;
 
     /// <summary>
     /// Starts streaming. <paramref name="fps"/> is a target, not a guarantee —
@@ -87,20 +89,137 @@ public sealed class ScreenCaptureService : IDisposable
                 sftp.Disconnect();
             }
 
-            // A ShellStream is used rather than SshCommand.CreateInputStream()
-            // because that stream is only valid while the command itself is
-            // executing, which does not work for a long-lived producer.
-            var shell = client.CreateShellStream(
-                "g350capture", 200, 50, 640, 480, 1 << 20);
-
             var args = once
                 ? "--once"
                 : $"--fps {fps.ToString("0.##", CultureInfo.InvariantCulture)}";
-            shell.WriteLine($"python3 {RemotePath} {args}");
+
+            // Elevated on purpose. DRM buffer export needs privileges on this
+            // device: as 'ark', drmModeGetFB returns handle=0 and
+            // drmPrimeHandleToFD fails, so no GPU buffer can be read. The same
+            // call as root returns a valid handle and the full frame. Emulation
+            // Station and RetroArch render through DRM, so without this the
+            // preview is blank whenever ES or a game is on screen.
+            //
+            // The password is piped into `sudo -S`, matching the console's own
+            // scripts, so it never appears in the process list as an argument.
+            //
+            // Streamed straight back, with no PTY. An exec channel has no
+            // terminal, so nothing echoes the command into the byte stream.
+            // (A ShellStream does allocate a PTY and injects bracketed-paste
+            // escapes, which corrupts frames.)
+            //
+            // Do NOT redirect to a file and cat it: the grabber streams
+            // continuously and never exits, so `cat` would never run and the
+            // reader would sit on an empty file.
+            var command =
+                $"echo {Password} | sudo -S -p '' python3 {RemotePath} {args}";
+
+            var cmd = client.CreateCommand(command);
+            // Long but finite: TimeSpan.Zero means "infinite" and trips an
+            // internal guard in SSH.NET. A stream is stopped explicitly by
+            // Stop(), not by a timeout.
+            cmd.CommandTimeout = TimeSpan.FromHours(6);
+
+            // SSH.NET quirk: SshCommand.CreateInputStream() throws unless the
+            // command is *already* executing, and Execute() does not return
+            // until it finishes. So execution is kicked off on its own task,
+            // CreateInputStream() is retried until it succeeds, and the bytes
+            // are copied into an in-memory pipe owned by this class.
+            //
+            // The pipe is what makes the output readable after Execute()
+            // finishes, and it is bounded so a stalled reader applies
+            // back-pressure to the console instead of buffering without limit.
+            // A simple thread-safe queue of byte chunks. System.IO.Pipelines'
+            // AsStream() does not support Read(), and an unbounded queue is fine
+            // here: ReadFrame() consumes a frame within milliseconds, and Stop()
+            // clears whatever is left.
+            var queue = new BlockingByteQueue();
+
+            var ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var failure = new TaskCompletionSource<Exception?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var pump = Task.Run(async () =>
+            {
+                // Use the raw SSH channel rather than SshCommand.CreateInputStream():
+                // that helper is only valid while Execute() runs and throws
+                // "Specified method is not supported" on this SSH.NET build.
+                // An exec channel gives a direct pipe from the remote process,
+                // with no PTY and therefore no echo or bracketed-paste noise.
+                try
+                {
+                    // SshCommand under the hood, but reading its channel directly.
+                    var cmd2 = client.CreateCommand(command);
+                    cmd2.CommandTimeout = TimeSpan.FromHours(6);
+
+                    var exec = Task.Run(() =>
+                    {
+                        try { cmd2.Execute(); }
+                        catch (Exception ex) { failure.TrySetResult(ex); }
+                    });
+
+                    // The channel is available once execution has begun.
+                    System.IO.Stream src = null!;
+                    for (var attempt = 0; attempt < 100; attempt++)
+                    {
+                        try
+                        {
+                            src = cmd2.OutputStream;
+                            if (src is not null) break;
+                        }
+                        catch { }
+                        await Task.Delay(50);
+                    }
+
+                    if (src is null)
+                    {
+                        LastError = "the console never produced a capture stream";
+                        ready.TrySetResult(false);
+                        queue.Complete();
+                        return;
+                    }
+
+                    ready.TrySetResult(true);
+
+                    var buffer = new byte[64 * 1024];
+                    while (true)
+                    {
+                        var n = src.Read(buffer, 0, buffer.Length);
+                        if (n <= 0) { LastError = "the capture stream closed"; break; }
+
+                        var chunk = new byte[n];
+                        Buffer.BlockCopy(buffer, 0, chunk, 0, n);
+                        queue.Add(chunk);
+                    }
+
+                    try { await exec; } catch { }
+                }
+                catch (Exception ex)
+                {
+                    LastError = ex.Message;
+                    failure.TrySetResult(ex);
+                }
+                finally
+                {
+                    queue.Complete();
+                }
+            });
+
+            var holder = Task.WhenAny(ready.Task, Task.Delay(TimeSpan.FromSeconds(20)))
+                             .GetAwaiter().GetResult();
+            if (holder != ready.Task || !ready.Task.Result)
+            {
+                var err = failure.Task.IsCompletedSuccessfully ? failure.Task.Result : null;
+                LastError = err?.Message ?? LastError ?? "the console did not start the capture";
+                throw new InvalidOperationException(LastError);
+            }
+
+            _queue = queue;
+            _pending = new Queue<byte>();
+            _pump = pump;
 
             _client = client;
-            _shell = shell;
-            _stream = shell;
+            _command = cmd;
+            _pump = pump;
             _host = host;
             FrameCount = 0;
             return true;
@@ -122,48 +241,40 @@ public sealed class ScreenCaptureService : IDisposable
     /// </summary>
     public CapturedFrame? ReadFrame(CancellationToken token)
     {
-        var stream = _stream;
-        if (stream is null) return null;
+        var queue = _queue;
+        if (queue is null) return null;
 
         try
         {
-            var header = ReadLine(stream, token);
-            if (header is null) return null;
-
-            // Skip anything that is not our header (banner/ssh noise).
-            var guard = 0;
-            while (!header.StartsWith("G350FRAME ", StringComparison.Ordinal))
+            // Resynchronise on the header. Anything before it (sudo chatter, a
+            // stray notice) is discarded rather than misread as pixels.
+            for (var guard = 0; guard < 20; guard++)
             {
-                if (++guard > 20) return null;
-                header = ReadLine(stream, token);
-                if (header is null) return null;
+                var line = ReadLine(queue, token);
+                if (line is null) return null;
+                if (!line.StartsWith("G350FRAME ", StringComparison.Ordinal)) continue;
+
+                var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length < 4) return null;
+
+                if (!int.TryParse(parts[1], out var width) ||
+                    !int.TryParse(parts[2], out var height) ||
+                    !int.TryParse(parts[3], out var bytes))
+                    return null;
+
+                if (width <= 0 || height <= 0) return null;
+
+                // Guard against a corrupt length turning into a huge allocation.
+                if (bytes <= 0 || bytes > width * height * 4) return null;
+
+                var pixels = ReadExactly(queue, bytes, token);
+                if (pixels is null) return null;
+
+                FrameCount++;
+                return new CapturedFrame { Width = width, Height = height, Pixels = pixels };
             }
 
-            var parts = header.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length < 4) return null;
-
-            if (!int.TryParse(parts[1], out var width) ||
-                !int.TryParse(parts[2], out var height) ||
-                !int.TryParse(parts[3], out var bytes))
-                return null;
-
-            if (width <= 0 || height <= 0) return null;
-
-            // Guard against a corrupt length turning into a huge allocation.
-            if (bytes <= 0 || bytes > width * height * 4) return null;
-
-            var buffer = new byte[bytes];
-            var read = 0;
-            while (read < bytes)
-            {
-                token.ThrowIfCancellationRequested();
-                var n = stream.Read(buffer, read, bytes - read);
-                if (n <= 0) return null;
-                read += n;
-            }
-
-            FrameCount++;
-            return new CapturedFrame { Width = width, Height = height, Pixels = buffer };
+            return null;
         }
         catch (OperationCanceledException)
         {
@@ -175,7 +286,8 @@ public sealed class ScreenCaptureService : IDisposable
         }
     }
 
-    private static string? ReadLine(Stream stream, CancellationToken token)
+    /// <summary>Reads one newline-terminated header line.</summary>
+    private string? ReadLine(BlockingByteQueue queue, CancellationToken token)
     {
         var sb = new StringBuilder(32);
 
@@ -183,22 +295,43 @@ public sealed class ScreenCaptureService : IDisposable
         {
             token.ThrowIfCancellationRequested();
 
-            var b = stream.ReadByte();
+            var b = queue.Read(token);
             if (b < 0) return null;
-            if (b == '\n') return sb.ToString();
+            if (b == 10) return sb.ToString();
             if (sb.Length < 256) sb.Append((char)b);
         }
     }
 
+    /// <summary>Reads exactly <paramref name="count"/> bytes of pixel data.</summary>
+    private static byte[]? ReadExactly(BlockingByteQueue queue, int count, CancellationToken token)
+    {
+        var result = new byte[count];
+        var offset = 0;
+
+        while (offset < count)
+        {
+            token.ThrowIfCancellationRequested();
+
+            var b = queue.Read(token);
+            if (b < 0) return null;
+            result[offset++] = (byte)b;
+        }
+
+        return result;
+    }
+
     public void Stop()
     {
-        try { _shell?.Dispose(); } catch { }
-        try { _stream?.Dispose(); } catch { }
+
+        try { _command?.CancelAsync(); } catch { }
+        try { _command?.Dispose(); } catch { }
         try { _client?.Disconnect(); } catch { }
         try { _client?.Dispose(); } catch { }
 
-        _shell = null;
-        _stream = null;
+        _queue = null;
+        _pending.Clear();
+        _command = null;
+        _pump = null;
         _client = null;
         _host = null;
     }
@@ -222,4 +355,53 @@ public sealed class ScreenCaptureService : IDisposable
     }
 
     public void Dispose() => Stop();
+}
+
+/// <summary>
+/// Blocking byte queue fed by the SSH reader thread and drained by ReadFrame().
+///
+/// A plain lock + monitor is used deliberately. System.IO.Pipelines' AsStream()
+/// reports "Specified method is not supported" for Read, and awaiting
+/// ChannelReader.WaitToReadAsync() from the reader thread was likewise
+/// unsupported, so neither fits a simple synchronous consumer.
+/// </summary>
+internal sealed class BlockingByteQueue
+{
+    private readonly object _gate = new();
+    private readonly Queue<byte> _bytes = new();
+    private bool _completed;
+
+    public void Add(byte[] chunk)
+    {
+        lock (_gate)
+        {
+            foreach (var b in chunk) _bytes.Enqueue(b);
+            Monitor.PulseAll(_gate);
+        }
+    }
+
+    public void Complete()
+    {
+        lock (_gate)
+        {
+            _completed = true;
+            Monitor.PulseAll(_gate);
+        }
+    }
+
+    /// <summary>Next byte, or -1 when the stream is finished.</summary>
+    public int Read(CancellationToken token)
+    {
+        lock (_gate)
+        {
+            while (_bytes.Count == 0 && !_completed)
+            {
+                token.ThrowIfCancellationRequested();
+                Monitor.Wait(_gate, 100);
+            }
+
+            if (_bytes.Count == 0) return -1;
+            return _bytes.Dequeue();
+        }
+    }
 }
