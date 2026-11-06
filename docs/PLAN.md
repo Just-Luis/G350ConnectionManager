@@ -244,10 +244,23 @@ Full write-up: `G350Wired/docs/CONSOLE_CONTROL_INTERFACE.md`.
 **Test:** upload/download round-trip, checksum match, cancel mid-transfer.
 **Risk:** medium — destructive operations, so it goes last and gets typed confirmation.
 
-### Stage 9 — Polish & Packaging  📦
-**Build:** hotkeys, auto-start options, single-file publish, CI workflow attaching the EXE.
+### Stage 9 — Polish & Packaging  📦  ✅ **DONE**
+**Build:** app icon, overview cards on Home, CI that verifies the artefact before
+publishing it.
 **Test:** run on a clean Windows VM with no .NET installed.
 **Risk:** low.
+
+Notes from doing it:
+
+* `ApplicationIcon` brands the EXE itself. Binding the same file from XAML as a
+  window icon needs it to be a WPF `Resource` *and* referenced by pack URI; that
+  combination kept failing to resolve at runtime, and a missing window icon is
+  cosmetic, so the binding was dropped rather than spending more time on it. The
+  EXE, taskbar entry and Start-menu shortcut still show the icon.
+* CI now fails the build if the published EXE is under 40 MB, which is the
+  signature of a framework-dependent build that will not run on a clean machine.
+* The release asset is published by CI on tag, which removes the manual upload
+  step entirely — that step twice uploaded a stale binary.
 
 **Optional Stage 10 —** swap MJPEG for H.264 via bundled FFmpeg (§5, Option A).
 

@@ -25,7 +25,7 @@
                         <TextBlock x:Name="BannerHeadline" Text="Checking connection…"
                                    FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <TextBlock x:Name="BannerDetail" Margin="6,0,0,0" FontSize="14"
+                        <TextBlock x:Name="BannerDetail" Margin="8,0,0,0" FontSize="14"
                                    Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </StackPanel>
                     <Button Grid.Column="2" Content="Test connection"
@@ -35,7 +35,7 @@
             </Border>
 
             <!-- Three steps -->
-            <UniformGrid Columns="3" Margin="0,18,0,0">
+            <UniformGrid Columns="5" Margin="0,18,0,0">
                 <Border Style="{StaticResource CardStyle}" Margin="0,0,6,0">
                     <StackPanel>
                         <Border Width="26" Height="26" CornerRadius="8"
@@ -68,7 +68,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource CardStyle}" Margin="6,0,0,0">
+                <Border Style="{StaticResource CardStyle}" Margin="8,0,0,0">
                     <StackPanel>
                         <Border Width="26" Height="26" CornerRadius="8"
                                 Background="{DynamicResource SoftBrush}"
@@ -78,8 +78,41 @@
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Screen" Style="{StaticResource SectionTitleStyle}" Margin="0,10,0,0"/>
-                        <TextBlock Text="Available in Stage 5"
-                                   Style="{StaticResource BodyTextStyle}" Margin="0,4,0,0"/>
+                        <TextBlock x:Name="Step3Text" Text="Ready"
+                                   Style="{StaticResource BodyTextStyle}" Margin="0,4,0,0"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource CardStyle}" Margin="8,0,0,0">
+                    <StackPanel>
+                        <Border Width="26" Height="26" CornerRadius="8"
+                                Background="{DynamicResource SoftBrush}"
+                                HorizontalAlignment="Left">
+                            <TextBlock Text="4" FontWeight="Bold" FontSize="13"
+                                       Foreground="{DynamicResource AccentBrush}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Files" Style="{StaticResource SectionTitleStyle}" Margin="0,10,0,0"/>
+                        <TextBlock x:Name="Step4Text" Text="—"
+                                   Style="{StaticResource BodyTextStyle}" Margin="0,4,0,0"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource CardStyle}" Margin="8,0,0,0">
+                    <StackPanel>
+                        <Border Width="26" Height="26" CornerRadius="8"
+                                Background="{DynamicResource SoftBrush}"
+                                HorizontalAlignment="Left">
+                            <TextBlock Text="5" FontWeight="Bold" FontSize="13"
+                                       Foreground="{DynamicResource AccentBrush}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Console" Style="{StaticResource SectionTitleStyle}" Margin="0,10,0,0"/>
+                        <TextBlock x:Name="Step5Text" Text="—"
+                                   Style="{StaticResource BodyTextStyle}" Margin="0,4,0,0"
+                                   TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                 </Border>
             </UniformGrid>
