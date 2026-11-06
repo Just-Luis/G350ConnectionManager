@@ -276,31 +276,32 @@
                                             Click="IcsDisable_Click"/>
                                 </StackPanel>
 
-                                <!-- Shown while/after the console is told to
-                                     re-apply its network settings. -->
-                                <Border x:Name="IcsRestartBox" Visibility="Collapsed"
-                                        Margin="0,12,0,0" CornerRadius="8" Padding="12"
-                                        Background="{DynamicResource SurfaceBrush}"
-                                        BorderBrush="{DynamicResource DividerBrush}"
-                                        BorderThickness="1">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Ellipse x:Name="IcsRestartDot" Grid.Column="0"
-                                                 Width="9" Height="9" VerticalAlignment="Center"
-                                                 Fill="{DynamicResource StatusIdleBrush}"/>
-                                        <TextBlock x:Name="IcsRestartText" Grid.Column="1"
-                                                   Margin="9,0,0,0" FontSize="12.5"
-                                                   TextWrapping="Wrap"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                    </Grid>
-                                </Border>
 
                             </StackPanel>
                         </StackPanel>
                     </Border>
+
+                            <!-- Shown while/after the console is told to
+                                 re-apply its network settings. -->
+                            <Border x:Name="IcsRestartBox" Visibility="Collapsed"
+                                    Margin="0,12,0,0" CornerRadius="8" Padding="12"
+                                    Background="{DynamicResource SurfaceBrush}"
+                                    BorderBrush="{DynamicResource DividerBrush}"
+                                    BorderThickness="1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Ellipse x:Name="IcsRestartDot" Grid.Column="0"
+                                             Width="9" Height="9" VerticalAlignment="Center"
+                                             Fill="{DynamicResource StatusIdleBrush}"/>
+                                    <TextBlock x:Name="IcsRestartText" Grid.Column="1"
+                                               Margin="9,0,0,0" FontSize="12.5"
+                                               TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                </Grid>
+                            </Border>
 
                     <TextBlock x:Name="IcsFooterText"
                                Text="Turning sharing on or off updates the console's network settings automatically."
