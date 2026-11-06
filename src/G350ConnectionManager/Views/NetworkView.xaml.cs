@@ -412,40 +412,55 @@ public partial class NetworkView : UserControl
         RenderIcsActions(snapshot);
         IcsCheckButton.IsEnabled = false;
 
-        NetworkHint.Text = enable
-            ? "Turning on sharing… approve the Windows prompt if it appears."
-            : "Turning off sharing… approve the Windows prompt if it appears.";
-
-        var (ok, message) = await _ics.SetSharingAsync(
-            enable,
-            source?.Name ?? snapshot.PublicConnection?.Name ?? string.Empty,
-            console.Name);
-
-        if (!ok)
+        try
         {
-            _icsBusy = false;
+            NetworkHint.Text = enable
+                ? "Turning on sharing… approve the Windows prompt if it appears."
+                : "Turning off sharing… approve the Windows prompt if it appears.";
+
+            var (ok, message, after) = await _ics.SetSharingAsync(
+                enable,
+                source?.Name ?? snapshot.PublicConnection?.Name ?? string.Empty,
+                console.Name);
+
+            // Use the state the elevated helper captured. Re-reading here would
+            // need a second elevation prompt for data we already have, and the
+            // stale copy is what left the buttons stuck.
+            if (after is not null)
+            {
+                _icsSnapshot = after;
+                RenderIcs(after);
+                UpdateFieldState();
+            }
+
+            if (!ok)
+            {
+                NetworkHint.Text = message;
+                return;
+            }
+
             NetworkHint.Text = message;
-            IcsCheckButton.IsEnabled = true;
-            await RefreshIcsAsync();
-            return;
+            await App.Link.RefreshAsync();
+            Render(App.Link.Current);
+
+            // The PC address just changed, so the console's gateway is stale.
+            // Ask it to re-apply rather than making the user press Start Services.
+            var host = App.Link.Current.ConsoleIp;
+            if (!string.IsNullOrEmpty(host))
+                await RefreshConsoleNetworkAsync(host);
         }
+        finally
+        {
+            // Always release the buttons, including on an exception or an early
+            // return. They were disabled while _icsBusy was true, and nothing
+            // re-enabled them afterwards — which is why a Refresh used to be
+            // needed before the panel could be used again.
+            _icsBusy = false;
+            IcsCheckButton.IsEnabled = true;
 
-        // The elevated helper already waited for Windows to settle, so one
-        // refresh is enough here. Polling from the UI would raise a new UAC
-        // prompt on every read.
-        NetworkHint.Text = message + " Refreshing…";
-        await RefreshIcsAsync(quiet: true);
-        _icsBusy = false;
-        IcsCheckButton.IsEnabled = true;
-
-        await App.Link.RefreshAsync();
-        Render(App.Link.Current);
-
-        // The PC address just changed, so the console's gateway is stale.
-        // Ask it to re-apply rather than making the user press Start Services.
-        var host = App.Link.Current.ConsoleIp;
-        if (!string.IsNullOrEmpty(host))
-            await RefreshConsoleNetworkAsync(host);
+            if (_icsSnapshot is not null)
+                RenderIcsActions(_icsSnapshot);
+        }
     }
 
     /// <summary>
