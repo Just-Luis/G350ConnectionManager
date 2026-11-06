@@ -47,7 +47,7 @@ original design mock.
 | 7 | Recording (H.264 MP4) | ✅ **Done** |
 | 8 | Files (SFTP dual pane) | ✅ **Done** |
 | 8b | Console (run commands, read output) | ✅ **Done** |
-| 9 | Polish & packaging (hotkeys, CI, signed release) | ⬜ Planned |
+| 9 | Polish & packaging (app icon, CI verification, overview cards) | ✅ **Done** |
 | *10* | *Optional: H.264/MP4 via bundled FFmpeg* | ⬜ Later |
 
 Each stage ships its own tag and release, so any point can be rolled back to.

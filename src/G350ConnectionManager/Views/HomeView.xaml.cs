@@ -65,5 +65,11 @@ public partial class HomeView : UserControl
         Step2Text.Text = s.InternetSharingActive
             ? (s.InternetReachable ? "Sharing on — PC online" : "Sharing on — PC offline")
             : "Off";
+
+        // These are always available, but saying so is friendlier than saying
+        // nothing, and it hints that they depend on the link being up.
+        Step3Text.Text = s.IsReady ? "Preview and record" : "Connect first";
+        Step4Text.Text = s.IsReady ? "Browse and transfer" : "Connect first";
+        Step5Text.Text = s.IsReady ? "Run commands" : "Connect first";
     }
 }
