@@ -135,6 +135,14 @@
                         </StackPanel>
                     </RadioButton>
 
+                    <RadioButton x:Name="NavConsole" Style="{StaticResource NavButtonStyle}"
+                                 GroupName="Nav" Tag="Console" Checked="Nav_Checked">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconConsole}" Style="{StaticResource NavIconStyle}"/>
+                            <TextBlock Text="Console" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
+
                     <RadioButton x:Name="NavSettings" Style="{StaticResource NavButtonStyle}"
                                  GroupName="Nav" Tag="Settings" Checked="Nav_Checked">
                         <StackPanel Orientation="Horizontal">

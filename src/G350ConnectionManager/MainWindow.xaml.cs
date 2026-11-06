@@ -24,6 +24,7 @@ public partial class MainWindow : Window
         ["Network"] = () => new NetworkView(),
         ["Screen"] = () => new ScreenView(),
         ["Files"] = () => new FilesView(),
+        ["Console"] = () => new ConsoleView(),
         ["Settings"] = () => new SettingsView(),
     };
 

@@ -19,6 +19,9 @@
     <Geometry x:Key="IconFiles">M3,7 A2,2 0 0 1 5,5 L9,5 L11,7 L19,7 A2,2 0 0 1 21,9 L21,17 A2,2 0 0 1 19,19 L5,19 A2,2 0 0 1 3,17 Z</Geometry>
 
     <!-- sliders: horizontal rules + three knobs -->
+    <!-- Terminal prompt: a chevron and an underscore, matching the Console mock. -->
+    <Geometry x:Key="IconConsole">M4,7 L9,12 L4,17 M12,17 L20,17</Geometry>
+
     <Geometry x:Key="IconSettings">M4,6 L14,6 M18,6 L20,6 M4,12 L4,12 M4,12 L8,12 M12,12 L20,12 M4,18 L16,18 M20,18 L20,18</Geometry>
 
     <!-- chevron left (collapse toggle) -->
