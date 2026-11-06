@@ -37,12 +37,13 @@
                     <Border x:Name="BrandLogo" Width="36" Height="36" CornerRadius="10"
                             HorizontalAlignment="Left"
                             Margin="7,0,0,0"
-                            Background="{DynamicResource AccentBrush}">
-                        <TextBlock Text="G"
-                                   FontSize="16" FontWeight="Bold"
-                                   Foreground="{DynamicResource OnAccentBrush}"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"/>
+                            Background="{DynamicResource SoftBrush}">
+                        <!-- G350 mark from the design sheet. Two files because the
+                             outline is black on the light theme and white on the
+                             dark one; ThemeService swaps them. -->
+                        <Image x:Name="BrandMark" Stretch="Uniform" Margin="4"
+                               RenderOptions.BitmapScalingMode="HighQuality"
+                               Source="pack://application:,,,/brand.png"/>
                     </Border>
                     <StackPanel x:Name="BrandText" Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="G350 Companion"
