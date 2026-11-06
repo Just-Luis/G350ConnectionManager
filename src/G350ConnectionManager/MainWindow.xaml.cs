@@ -30,6 +30,28 @@ public partial class MainWindow : Window
 
     private readonly Dictionary<string, FrameworkElement> _viewCache = new();
 
+    /// <summary>
+    /// The brand mark needs a different outline per theme: black on light is
+    /// invisible against a dark sidebar and vice versa.
+    /// </summary>
+    private void ApplyBrandMark()
+    {
+        if (BrandMark is null) return;
+
+        var dark = App.Theme.CurrentTheme == ThemeService.AppTheme.Dark;
+        var file = dark ? "brand_light.png" : "brand.png";
+
+        try
+        {
+            BrandMark.Source = new System.Windows.Media.Imaging.BitmapImage(
+                new Uri($"pack://application:,,,/{file}", UriKind.Absolute));
+        }
+        catch
+        {
+            // A missing asset should not stop the window from opening.
+        }
+    }
+
     public MainWindow()
     {
         InitializeComponent();
@@ -50,6 +72,35 @@ public partial class MainWindow : Window
     }
 
     // ---------------------------------------------------------------- nav
+
+    /// <summary>
+    /// Navigates to a tab by name, syncing the sidebar selection.
+    ///
+    /// Views call this rather than poking ContentHost directly, so the sidebar
+    /// highlight never disagrees with what is on screen.
+    /// </summary>
+    public void GoTo(string tag)
+    {
+        var button = tag switch
+        {
+            "Home" => NavHome,
+            "Network" => NavNetwork,
+            "Screen" => NavScreen,
+            "Files" => NavFiles,
+            "Console" => NavConsole,
+            "Settings" => NavSettings,
+            _ => null
+        };
+
+        if (button is not null)
+        {
+            // Checking the button raises Nav_Checked, which performs the swap.
+            button.IsChecked = true;
+            return;
+        }
+
+        Navigate(tag);
+    }
 
     private void Nav_Checked(object sender, RoutedEventArgs e)
     {

@@ -38,12 +38,15 @@
             <UniformGrid Columns="5" Margin="0,18,0,0">
                 <Border Style="{StaticResource CardStyle}" Margin="0,0,6,0">
                     <StackPanel>
-                        <Border Width="26" Height="26" CornerRadius="8"
+                        <Border x:Name="CardIcon1" Width="30" Height="30" CornerRadius="8"
+                                HorizontalAlignment="Left" Cursor="Hand"
                                 Background="{DynamicResource SoftBrush}"
-                                HorizontalAlignment="Left">
-                            <TextBlock Text="1" FontWeight="Bold" FontSize="13"
-                                       Foreground="{DynamicResource AccentBrush}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                Tag="Network" MouseLeftButtonUp="Card_Click"
+                                ToolTip="Open Network">
+                            <Path Data="{StaticResource IconNetwork}"
+                                  Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.8"
+                                  Width="17" Height="17" Stretch="Uniform"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Network" Style="{StaticResource SectionTitleStyle}" Margin="0,10,0,0"/>
                         <TextBlock x:Name="Step1Text" Text="Checking…"
@@ -54,12 +57,15 @@
 
                 <Border Style="{StaticResource CardStyle}" Margin="3,0">
                     <StackPanel>
-                        <Border Width="26" Height="26" CornerRadius="8"
+                        <Border Width="30" Height="30" CornerRadius="8"
+                                HorizontalAlignment="Left" Cursor="Hand"
                                 Background="{DynamicResource SoftBrush}"
-                                HorizontalAlignment="Left">
-                            <TextBlock Text="2" FontWeight="Bold" FontSize="13"
-                                       Foreground="{DynamicResource AccentBrush}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                Tag="Network" MouseLeftButtonUp="Card_Click"
+                                ToolTip="Open Network">
+                            <Path Data="{StaticResource IconStream}"
+                                  Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.8"
+                                  Width="17" Height="17" Stretch="Uniform"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Internet sharing" Style="{StaticResource SectionTitleStyle}" Margin="0,10,0,0"/>
                         <TextBlock x:Name="Step2Text" Text="Checking…"
@@ -70,12 +76,15 @@
 
                 <Border Style="{StaticResource CardStyle}" Margin="8,0,0,0">
                     <StackPanel>
-                        <Border Width="26" Height="26" CornerRadius="8"
+                        <Border Width="30" Height="30" CornerRadius="8"
+                                HorizontalAlignment="Left" Cursor="Hand"
                                 Background="{DynamicResource SoftBrush}"
-                                HorizontalAlignment="Left">
-                            <TextBlock Text="3" FontWeight="Bold" FontSize="13"
-                                       Foreground="{DynamicResource AccentBrush}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                Tag="Screen" MouseLeftButtonUp="Card_Click"
+                                ToolTip="Open Screen">
+                            <Path Data="{StaticResource IconScreen}"
+                                  Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.8"
+                                  Width="17" Height="17" Stretch="Uniform"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Screen" Style="{StaticResource SectionTitleStyle}" Margin="0,10,0,0"/>
                         <TextBlock x:Name="Step3Text" Text="Ready"
@@ -86,12 +95,15 @@
 
                 <Border Style="{StaticResource CardStyle}" Margin="8,0,0,0">
                     <StackPanel>
-                        <Border Width="26" Height="26" CornerRadius="8"
+                        <Border Width="30" Height="30" CornerRadius="8"
+                                HorizontalAlignment="Left" Cursor="Hand"
                                 Background="{DynamicResource SoftBrush}"
-                                HorizontalAlignment="Left">
-                            <TextBlock Text="4" FontWeight="Bold" FontSize="13"
-                                       Foreground="{DynamicResource AccentBrush}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                Tag="Files" MouseLeftButtonUp="Card_Click"
+                                ToolTip="Open Files">
+                            <Path Data="{StaticResource IconFiles}"
+                                  Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.8"
+                                  Width="17" Height="17" Stretch="Uniform"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Files" Style="{StaticResource SectionTitleStyle}" Margin="0,10,0,0"/>
                         <TextBlock x:Name="Step4Text" Text="—"
@@ -102,12 +114,15 @@
 
                 <Border Style="{StaticResource CardStyle}" Margin="8,0,0,0">
                     <StackPanel>
-                        <Border Width="26" Height="26" CornerRadius="8"
+                        <Border Width="30" Height="30" CornerRadius="8"
+                                HorizontalAlignment="Left" Cursor="Hand"
                                 Background="{DynamicResource SoftBrush}"
-                                HorizontalAlignment="Left">
-                            <TextBlock Text="5" FontWeight="Bold" FontSize="13"
-                                       Foreground="{DynamicResource AccentBrush}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                Tag="Console" MouseLeftButtonUp="Card_Click"
+                                ToolTip="Open Console">
+                            <Path Data="{StaticResource IconConsole}"
+                                  Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.8"
+                                  Width="17" Height="17" Stretch="Uniform"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Console" Style="{StaticResource SectionTitleStyle}" Margin="0,10,0,0"/>
                         <TextBlock x:Name="Step5Text" Text="—"

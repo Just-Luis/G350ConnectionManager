@@ -42,6 +42,23 @@ public partial class HomeView : UserControl
 
     private void Test_Click(object sender, RoutedEventArgs e) => _ = App.Link.RefreshAsync();
 
+    /// <summary>
+    /// The icon at the top of each card navigates to that tab, which is quicker
+    /// than hunting the sidebar for the same destination.
+    /// </summary>
+    private void Card_Click(object sender, RoutedEventArgs e)
+    {
+        var tag = sender switch
+        {
+            Button b => b.Tag as string,
+            FrameworkElement fe => fe.Tag as string,
+            _ => null
+        };
+
+        if (tag is not null && Window.GetWindow(this) is MainWindow main)
+            main.GoTo(tag);
+    }
+
     private void Render(LinkSnapshot s)
     {
         BannerDot.Fill = (Brush)FindResource(
