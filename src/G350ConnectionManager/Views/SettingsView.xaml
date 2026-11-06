@@ -55,22 +55,60 @@
                 </StackPanel>
             </Border>
 
-            <!-- Capture folders (placeholders for Stage 5/7) -->
+            <!-- Where captures are saved -->
             <Border Style="{StaticResource CardStyle}" Margin="0,18,0,0">
                 <StackPanel>
-                    <TextBlock Text="Capture folders" Style="{StaticResource FieldLabelStyle}"/>
+                    <TextBlock Text="Save captures to" Style="{StaticResource FieldLabelStyle}"/>
 
                     <TextBlock Text="Screenshots" FontSize="13" Margin="0,0,0,6"
                                Foreground="{DynamicResource TextSecondaryBrush}"/>
-                    <TextBox x:Name="ScreenshotFolderBox" Style="{StaticResource TextInputStyle}"
-                             Margin="0,0,0,12"/>
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="ScreenshotFolderBox" Grid.Column="0"
+                                 Style="{StaticResource TextInputStyle}" IsReadOnly="True"/>
+                        <Button x:Name="ScreenshotFolderButton" Grid.Column="1"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Margin="8,0,0,0" Padding="11,0" Height="38"
+                                ToolTip="Choose screenshot folder"
+                                Click="ChooseScreenshotFolder_Click">
+                            <Path Data="{StaticResource IconFiles}"
+                                  Stroke="{DynamicResource TextPrimaryBrush}"
+                                  StrokeThickness="1.7" Width="17" Height="17"
+                                  Stretch="Uniform"/>
+                        </Button>
+                    </Grid>
 
                     <TextBlock Text="Recordings" FontSize="13" Margin="0,0,0,6"
                                Foreground="{DynamicResource TextSecondaryBrush}"/>
-                    <TextBox x:Name="RecordingFolderBox" Style="{StaticResource TextInputStyle}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="RecordingFolderBox" Grid.Column="0"
+                                 Style="{StaticResource TextInputStyle}" IsReadOnly="True"/>
+                        <Button x:Name="RecordingFolderButton" Grid.Column="1"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Margin="8,0,0,0" Padding="11,0" Height="38"
+                                ToolTip="Choose recording folder"
+                                Click="ChooseRecordingFolder_Click">
+                            <Path Data="{StaticResource IconFiles}"
+                                  Stroke="{DynamicResource TextPrimaryBrush}"
+                                  StrokeThickness="1.7" Width="17" Height="17"
+                                  Stretch="Uniform"/>
+                        </Button>
+                    </Grid>
 
-                    <TextBlock Text="Used from Stage 5 onwards."
-                               FontSize="13" Margin="0,12,0,0"
+                    <Button x:Name="SameFolderButton" Content="Use the same folder for both"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Padding="12,6" FontSize="12.5" HorizontalAlignment="Left"
+                            Margin="0,14,0,0" Click="SameFolder_Click"/>
+
+                    <TextBlock Text="Both default to Pictures\G350 Captures. Recordings are usually much larger than screenshots, so a separate folder or drive is worth considering."
+                               FontSize="12.5" Margin="0,12,0,0" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextMutedBrush}"/>
                 </StackPanel>
             </Border>

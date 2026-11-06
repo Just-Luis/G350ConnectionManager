@@ -15,8 +15,24 @@ public sealed class AppSettings
     public string AccentHex { get; set; } = ThemeService.DefaultAccent;
     public bool StartCollapsed { get; set; }
     public bool SidebarCollapsed { get; set; }
+    // Both start in the same place. Settings is where they are pointed elsewhere.
     public string ScreenshotFolder { get; set; } = DefaultCaptureFolder();
     public string RecordingFolder { get; set; } = DefaultCaptureFolder();
+
+    /// <summary>
+    /// Fills in an empty folder setting.
+    ///
+    /// settings.json is additive and never migrated, so a file written by an
+    /// older build can carry a blank value and leave the picker showing nothing.
+    /// Only blanks are replaced; a folder the user chose is left alone.
+    /// </summary>
+    public void NormaliseFolders()
+    {
+        if (string.IsNullOrWhiteSpace(ScreenshotFolder))
+            ScreenshotFolder = DefaultCaptureFolder();
+        if (string.IsNullOrWhiteSpace(RecordingFolder))
+            RecordingFolder = DefaultCaptureFolder();
+    }
 
     /// <summary>
     /// Screen pipeline quality. Persisted so the chosen trade-off survives a
@@ -24,7 +40,11 @@ public sealed class AppSettings
     /// </summary>
     public CaptureSettings Capture { get; set; } = CaptureSettings.Default;
 
-    private static string DefaultCaptureFolder()
+    /// <summary>
+    /// Pictures\G350 Captures. Both screenshots and recordings default here; the
+    /// Settings page is where they are pointed elsewhere.
+    /// </summary>
+    public static string DefaultCaptureFolder()
     {
         var pictures = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
         return Path.Combine(pictures, "G350 Captures");
@@ -50,7 +70,11 @@ public sealed class AppSettings
             {
                 var json = File.ReadAllText(SettingsPath);
                 var loaded = JsonSerializer.Deserialize<AppSettings>(json);
-                if (loaded is not null) return loaded;
+                if (loaded is not null)
+                {
+                    loaded.NormaliseFolders();
+                    return loaded;
+                }
             }
         }
         catch

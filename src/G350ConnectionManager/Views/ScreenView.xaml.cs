@@ -46,7 +46,6 @@ public partial class ScreenView : UserControl
         InitializeComponent();
         _loading = false;
 
-        SaveToBox.Text = DefaultSaveFolder();
 
         Unloaded += (_, _) => { Unsubscribe(); StopRecording(); StopPreview(); };
         Loaded += (_, _) => Subscribe();
@@ -404,7 +403,7 @@ public partial class ScreenView : UserControl
             return;
         }
 
-        var folder = SaveToBox.Text;
+        var folder = App.Settings.ScreenshotFolder;
         Directory.CreateDirectory(folder);
 
         var name = $"g350-{DateTime.Now:yyyy-MM-dd HH-mm-ss}.png";
@@ -460,24 +459,5 @@ public partial class ScreenView : UserControl
 
         using var stream = File.Create(path);
         encoder.Save(stream);
-    }
-
-    private static string DefaultSaveFolder() =>
-        Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
-            "G350 Captures");
-
-    private void ChooseFolder_Click(object sender, RoutedEventArgs e)
-    {
-        var dialog = new OpenFolderDialog
-        {
-            Title = "Where should screenshots be saved?",
-            InitialDirectory = Directory.Exists(SaveToBox.Text)
-                ? SaveToBox.Text
-                : DefaultSaveFolder()
-        };
-
-        if (dialog.ShowDialog() == true)
-            SaveToBox.Text = dialog.FolderName;
     }
 }

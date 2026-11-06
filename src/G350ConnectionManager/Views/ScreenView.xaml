@@ -68,14 +68,6 @@
                         <TextBlock Text="Settings" Style="{StaticResource SectionTitleStyle}"
                                    Margin="0,0,0,14"/>
 
-                        <TextBlock Text="Save screenshots to" Style="{StaticResource FieldLabelStyle}"/>
-                        <TextBox x:Name="SaveToBox" Style="{StaticResource TextInputStyle}"
-                                 Margin="0,0,0,6" IsReadOnly="True"/>
-                        <Button x:Name="ChooseFolderButton" Content="Choose folder…"
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Padding="12,6" FontSize="12.5" HorizontalAlignment="Left"
-                                Margin="0,0,0,16" Click="ChooseFolder_Click"/>
-
                         <TextBlock Text="Resolution" Style="{StaticResource FieldLabelStyle}"/>
                         <ComboBox x:Name="ResolutionBox" Style="{StaticResource ThemedComboBoxStyle}"
                                   Margin="0,0,0,12" SelectionChanged="Settings_Changed">
