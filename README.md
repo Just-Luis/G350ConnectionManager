@@ -44,7 +44,7 @@ original design mock.
 | 4b | Internet sharing — enable/disable toggle + console route repair | ✅ **Done** |
 | 5 | Screen preview & screenshots | ✅ **Done** |
 | 6 | MJPEG streaming | ⬜ Planned |
-| 7 | Recording (MJPEG `.avi`) | ⬜ Planned |
+| 7 | Recording (H.264 MP4) | ✅ **Done** |
 | 8 | Files (SFTP dual pane) | ⬜ Planned |
 | 9 | Polish & packaging (hotkeys, CI, signed release) | ⬜ Planned |
 | *10* | *Optional: H.264/MP4 via bundled FFmpeg* | ⬜ Later |
