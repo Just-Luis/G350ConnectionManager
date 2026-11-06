@@ -61,10 +61,9 @@ public partial class HomeView : UserControl
                 ? "Adapter up, console silent"
                 : "Waiting for console";
 
-        Step2Text.Text = s.InternetReachable
-            ? "Online — PortMaster ready"
-            : s.InternetSharingActive
-                ? "Sharing on, no internet"
-                : "Off";
+        // Sharing can be on while the PC itself is offline, so both facts matter.
+        Step2Text.Text = s.InternetSharingActive
+            ? (s.InternetReachable ? "Sharing on — PC online" : "Sharing on — PC offline")
+            : "Off";
     }
 }

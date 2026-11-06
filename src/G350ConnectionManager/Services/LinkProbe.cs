@@ -142,20 +142,19 @@ public sealed class LinkProbe
         }
 
         // --- Stage 5: internet -------------------------------------------------
-        var gateway = adapter?.Gateway;
-        var internetOk = false;
+        //
+        // Asks whether THIS PC can reach the internet, not whether the console
+        // adapter has a gateway. Under ICS that adapter is the sharing *host* and
+        // deliberately has no gateway of its own, so keying off adapter.Gateway
+        // reported "sharing is off" precisely when sharing was on.
+        var internetOk = await PingAsync("8.8.8.8", 1200, ct) is not null;
 
-        if (!string.IsNullOrEmpty(gateway))
-        {
-            internetOk = await PingAsync("8.8.8.8", 1200, ct) is not null;
-            stages.Add(internetOk
-                ? new ProbeResult(ProbeState.Ok, "Internet reachable")
-                : new ProbeResult(ProbeState.Warning, "Gateway set but no internet"));
-        }
-        else
-        {
-            stages.Add(new ProbeResult(ProbeState.Unknown, "No gateway — sharing is off"));
-        }
+        stages.Add(internetOk
+            ? new ProbeResult(ProbeState.Ok, "This PC has internet")
+            : new ProbeResult(ProbeState.Warning,
+                "This PC has no internet — check Wi-Fi or Ethernet"));
+
+        var gateway = adapter?.Gateway;
 
         return new LinkSnapshot
         {

@@ -500,6 +500,13 @@ public partial class NetworkView : UserControl
             IcsStatusText.Text = "Checking internet sharing…";
             IcsDot.Fill = (Brush)FindResource("StatusIdleBrush");
         }
+        else
+        {
+            // The console-update line belongs to the toggle that produced it.
+            // Keeping it after a fresh read showed stale text ("gateway
+            // 192.168.7.1") long after the gateway had become 192.168.137.1.
+            IcsRestartBox.Visibility = Visibility.Collapsed;
+        }
 
         var snapshot = await _ics.ReadAsync();
         _icsSnapshot = snapshot;
