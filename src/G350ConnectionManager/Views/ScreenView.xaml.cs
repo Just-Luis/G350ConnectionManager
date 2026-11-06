@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -25,6 +26,15 @@ public partial class ScreenView : UserControl
     /// fields exist.
     /// </summary>
     private bool _loading = true;
+
+    /// <summary>Live quality settings, shared by preview and screenshots.</summary>
+    private CaptureSettings _settings = CaptureSettings.Default;
+
+    /// <summary>Set when a control changes so the pump picks it up next frame.</summary>
+    private volatile bool _settingsDirty;
+
+    private int _framesSinceChange;
+    private readonly Stopwatch _sinceChange = Stopwatch.StartNew();
 
     private bool _subscribed;
 
@@ -78,43 +88,63 @@ public partial class ScreenView : UserControl
         }
     }
 
-    // ----------------------------------------------------------------- rates
+    // -------------------------------------------------------------- settings
 
-    private static readonly Dictionary<string, double> Rates = new(StringComparer.Ordinal)
-    {
-        ["low"] = 3,
-        ["medium"] = 6,
-        ["high"] = 12
-    };
+    private int SelectedWidth =>
+        ResolutionBox?.SelectedItem is ComboBoxItem { Tag: string tag }
+        && int.TryParse(tag, out var w) ? w : 640;
 
-    private double SelectedFps =>
-        RateLow.IsChecked == true ? Rates["low"]
-        : RateHigh.IsChecked == true ? Rates["high"]
-        : Rates["medium"];
+    private void Settings_Changed(object sender, SelectionChangedEventArgs e) => ApplySettings();
+    private void Fps_Changed(object sender, RoutedPropertyChangedEventArgs<double> e) => ApplySettings();
+    private void Quality_Changed(object sender, RoutedPropertyChangedEventArgs<double> e) => ApplySettings();
+    private void Delay_Changed(object sender, RoutedPropertyChangedEventArgs<double> e) => ApplySettings();
 
-    private void Rate_Changed(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// Rebuilds the settings object from the controls.
+    ///
+    /// Scaling and JPEG encoding both happen on the PC: measured on the console,
+    /// ffmpeg needs ~1 s per frame, which would fight the game for its four
+    /// cores. Here it costs 1-10 ms, so the device only sends the raw frame it
+    /// already captures.
+    /// </summary>
+    private void ApplySettings()
     {
         if (_loading) return;
+        if (FpsSlider is null || QualitySlider is null || DelaySlider is null) return;
+
+        _settings = new CaptureSettings
+        {
+            Width = SelectedWidth,
+            Fps = FpsSlider.Value,
+            JpegQuality = (int)QualitySlider.Value,
+            DelayMs = (int)DelaySlider.Value
+        };
+
+        if (FpsValue is not null) FpsValue.Text = $"{_settings.Fps:0} fps";
+        if (QualityValue is not null) QualityValue.Text = $"{_settings.JpegQuality}";
+        if (DelayValue is not null) DelayValue.Text = $"{_settings.DelayMs} ms";
+
         UpdateRateHint();
 
-        // Applies on the next start; changing mid-stream would mean tearing down
-        // the SSH session and re-uploading the grabber.
-        if (_pump is not null)
-            PreviewStatus.Text = "Rate applies after restarting the preview.";
+        // Live controls: the pump reads these on its next frame, so changing a
+        // slider takes effect immediately instead of after a restart.
+        _settingsDirty = true;
+
+        App.Settings.Capture = _settings;
+        App.Settings.Save();
     }
 
     private void UpdateRateHint()
     {
         if (RateHint is null) return;
 
-        var fps = SelectedFps;
-        RateHint.Text = fps switch
-        {
-            <= 3 => "Low — lightest on the console, good for reading the menu.",
-            <= 6 => "Medium — smooth enough for menus and text screens.",
-            _ => "High — best effort. Each frame is a full 1.2 MB capture, so this "
-                 + "may not be reached."
-        };
+        // Rough guide only: the real ceiling is the USB link, not the sliders.
+        var budget = _settings.FrameBudgetMs;
+        RateHint.Text = budget < 120
+            ? "Aggressive: may not be reached on a busy link."
+            : budget < 300
+                ? "Comfortable for menus and text screens."
+                : "Gentle on the console; expect visible lag.";
     }
 
     // --------------------------------------------------------------- preview
@@ -138,7 +168,7 @@ public partial class ScreenView : UserControl
         PreviewButton.Content = "Starting…";
         PreviewStatus.Text = "Uploading the capture helper…";
 
-        var started = await _capture.StartAsync(host, SelectedFps);
+        var started = await _capture.StartAsync(host, _settings.Fps);
 
         if (!started)
         {
@@ -183,11 +213,27 @@ public partial class ScreenView : UserControl
                 await Dispatcher.InvokeAsync(() =>
                 {
                     ShowFrame(frame);
+
+                    if (_settingsDirty)
+                    {
+                        // Reset the counter so the reported rate reflects the
+                        // current settings rather than a blend of old and new.
+                        _settingsDirty = false;
+                        _framesSinceChange = 0;
+                        _sinceChange.Restart();
+                    }
+
+                    _framesSinceChange++;
+
                     if (report)
                     {
+                        var liveFps = _sinceChange.Elapsed.TotalSeconds > 0
+                            ? _framesSinceChange / _sinceChange.Elapsed.TotalSeconds
+                            : 0;
+
                         PreviewStatus.Text =
-                            $"{frame.Width}×{frame.Height} · {fps:0.0} fps · "
-                            + $"{_capture.FrameCount} frames";
+                            $"{_settings.Width}×{_settings.Height} · {liveFps:0.0} fps"
+                            + $" · q{_settings.JpegQuality} · {_capture.FrameCount} frames";
                     }
                 });
             }
@@ -221,16 +267,11 @@ public partial class ScreenView : UserControl
     /// </summary>
     private void ShowFrame(CapturedFrame frame)
     {
-        // Bgr32, not Bgra32: the console's framebuffer stores alpha=0 in every
-        // pixel. WPF honours the alpha channel when compositing, so a Bgra32
-        // source renders as a fully transparent (black) rectangle. Bgr32 uses
-        // the same 4-byte layout but ignores alpha.
-        var bitmap = BitmapSource.Create(
-            frame.Width, frame.Height, 96, 96,
-            PixelFormats.Bgr32, null, frame.Pixels, frame.Stride);
-        bitmap.Freeze();
-
-        PreviewImage.Source = bitmap;
+        // Scaling happens here rather than on the console: it costs ~2 ms on
+        // the PC versus ~1 s per frame for ffmpeg on the device's four weak
+        // cores. FrameConverter uses Bgr32 because the console stores alpha=0
+        // in every pixel and WPF would otherwise render nothing.
+        PreviewImage.Source = FrameConverter.ToBitmap(frame, _settings);
 
         PreviewPlaceholder.Visibility = Visibility.Collapsed;
         PreviewImage.Visibility = Visibility.Visible;
