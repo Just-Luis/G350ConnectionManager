@@ -223,6 +223,11 @@ public partial class NetworkView : UserControl
         await App.Link.RefreshAsync();
         await RefreshCurrentConfigAsync();
         Render(App.Link.Current);
+
+        // Any enforced address change invalidates the console's gateway, so the
+        // console must re-apply its own networking. Without this, Apply left the
+        // console pointing at a gateway that no longer existed.
+        if (ok) await RefreshConsoleNetworkAsync();
     }
 
     private async void Restore_Click(object sender, RoutedEventArgs e)
@@ -247,6 +252,10 @@ public partial class NetworkView : UserControl
         await App.Link.RefreshAsync();
         await RefreshCurrentConfigAsync();
         Render(App.Link.Current);
+
+        // Restoring also moves the PC address, so the console needs the same
+        // treatment as Apply.
+        if (ok) await RefreshConsoleNetworkAsync();
     }
 
     private async void Test_Click(object sender, RoutedEventArgs e)
@@ -442,12 +451,12 @@ public partial class NetworkView : UserControl
             NetworkHint.Text = message;
             await App.Link.RefreshAsync();
             Render(App.Link.Current);
-
             // The PC address just changed, so the console's gateway is stale.
-            // Ask it to re-apply rather than making the user press Start Services.
-            var host = App.Link.Current.ConsoleIp;
-            if (!string.IsNullOrEmpty(host))
-                await RefreshConsoleNetworkAsync(host);
+            // Always attempt the update: after ICS is turned off the PC leaves
+            // the .137.x subnet, so a probe may find no console address at all
+            // even though the device is perfectly reachable on the other one.
+            // RefreshNetworkAsync tries both addresses itself.
+            await RefreshConsoleNetworkAsync();
         }
         finally
         {
@@ -528,8 +537,13 @@ public partial class NetworkView : UserControl
     /// not unload g_ether or touch sshd, so it cannot cut the session used to
     /// ask for it.
     /// </summary>
-    private async Task RefreshConsoleNetworkAsync(string host)
+    private async Task RefreshConsoleNetworkAsync()
     {
+        // Re-probe first: the address the app holds may be the one that just
+        // stopped being valid. The service also falls back to the other
+        // candidate address, so a stale value here is not fatal.
+        await App.Link.RefreshAsync();
+        var host = App.Link.Current.ConsoleIp ?? string.Empty;
         IcsRestartText.Text = "Updating the console's network…";
         IcsRestartBox.Visibility = Visibility.Visible;
         IcsRestartDot.Fill = (Brush)FindResource("StatusIdleBrush");
@@ -538,7 +552,22 @@ public partial class NetworkView : UserControl
 
         // Verify rather than trust: the console reporting a gateway does not
         // prove packets flow.
-        var online = ok && await _console.HasInternetAsync(host);
+        // Give it a few seconds: the default route was just replaced and the
+        // first ICMP can fail while the kernel settles. A single immediate check
+        // reported "no internet" on a console that was in fact already online.
+        var online = false;
+        if (ok)
+        {
+            // Two tries, ~1s apart. HasInternetAsync already walks both console
+            // addresses, so a short retry is enough; a long one just leaves the
+            // panel saying "Updating..." after the work is actually done.
+            online = await _console.HasInternetAsync(host);
+            if (!online)
+            {
+                await Task.Delay(1000);
+                online = await _console.HasInternetAsync(host);
+            }
+        }
 
         IcsRestartDot.Fill = (Brush)FindResource(
             online ? "StatusOkBrush"
