@@ -58,6 +58,11 @@ public partial class MainWindow : Window
 
         _collapsed = App.Settings.SidebarCollapsed;
         ApplyCollapsedState(_collapsed);
+        // The mark's outline has to invert with the theme, so it is chosen
+        // here and re-chosen whenever the theme changes.
+        ApplyBrandMark();
+        App.Theme.ThemeChanged += OnThemeChanged;
+
         Navigate("Home");
 
         App.Link.Updated += OnLinkUpdated;
@@ -65,6 +70,8 @@ public partial class MainWindow : Window
 
         _initialising = false;
     }
+
+    private void OnThemeChanged(object? sender, EventArgs e) => ApplyBrandMark();
 
     private void OnLinkUpdated(object? sender, Models.LinkSnapshot snapshot)
     {
