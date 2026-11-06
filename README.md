@@ -45,7 +45,7 @@ original design mock.
 | 5 | Screen preview & screenshots | ✅ **Done** |
 | 6 | MJPEG streaming | ⬜ Planned |
 | 7 | Recording (H.264 MP4) | ✅ **Done** |
-| 8 | Files (SFTP dual pane) | ⬜ Planned |
+| 8 | Files (SFTP dual pane) | ✅ **Done** |
 | 9 | Polish & packaging (hotkeys, CI, signed release) | ⬜ Planned |
 | *10* | *Optional: H.264/MP4 via bundled FFmpeg* | ⬜ Later |
 

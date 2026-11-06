@@ -4,24 +4,23 @@
              xmlns:views="clr-namespace:G350ConnectionManager.Views">
 
     <!--
-      No outer ScrollViewer: the dual-pane explorer is meant to fill the window
-      and scroll internally. Using a Grid with a star row lets the file lists
-      grow to whatever height the window has, instead of being pinned to a
+      No outer ScrollViewer: the dual-pane explorer fills the window and scrolls
+      internally, so the lists grow with the window instead of being pinned to a
       fixed pixel height.
     -->
     <Grid Margin="32,32,28,32">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>   <!-- header -->
-            <RowDefinition Height="Auto"/>   <!-- ssh summary -->
+            <RowDefinition Height="Auto"/>   <!-- status -->
             <RowDefinition Height="*"/>      <!-- explorer -->
-            <RowDefinition Height="Auto"/>   <!-- hint -->
+            <RowDefinition Height="Auto"/>   <!-- activity -->
         </Grid.RowDefinitions>
 
         <views:PageHeader Grid.Row="0"
                           Title="Files"
                           Subtitle="Browse, read and write files on the G350 over SSH."/>
 
-        <!-- SSH connection summary -->
+        <!-- Connection status -->
         <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,18,0,0" Padding="16">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -30,25 +29,26 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                <Ellipse x:Name="StatusDot" Width="10" Height="10" VerticalAlignment="Center"
                          Fill="{DynamicResource StatusIdleBrush}"/>
-                <TextBlock Grid.Column="1" Text="Not connected via SSH"
+                <TextBlock x:Name="StatusText" Grid.Column="1" Text="Checking the console…"
                            Margin="10,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextPrimaryBrush}"/>
-                <Button Grid.Column="2" Content="Connect"
-                        Style="{StaticResource SecondaryButtonStyle}" IsEnabled="False"/>
+                <Button x:Name="RefreshButton" Grid.Column="2" Content="Refresh"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Padding="14,6" FontSize="12.5" Click="Refresh_Click"/>
             </Grid>
         </Border>
 
         <!-- ================= Dual pane explorer ================= -->
         <Grid Grid.Row="2" Margin="0,18,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="220"/>
+                <ColumnDefinition Width="*" MinWidth="240"/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*" MinWidth="220"/>
+                <ColumnDefinition Width="*" MinWidth="240"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Local -->
+            <!-- Local pane: this PC -->
             <Border Grid.Column="0" Style="{StaticResource CardStyle}" Padding="0">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -61,38 +61,69 @@
                             BorderBrush="{DynamicResource BorderBrush}">
                         <StackPanel>
                             <TextBlock Text="This PC" Style="{StaticResource SectionTitleStyle}" FontSize="15"/>
-                            <TextBlock Text="Select a folder" FontSize="13" Margin="0,2,0,0"
-                                       TextTrimming="CharacterEllipsis"
+                            <TextBlock x:Name="LocalPathText" Text="—" FontSize="12.5" Margin="0,2,0,0"
+                                       TextTrimming="CharacterEllipsis" FontFamily="Consolas"
                                        Foreground="{DynamicResource TextSecondaryBrush}"/>
                         </StackPanel>
                     </Border>
 
-                    <!-- Toolbar -->
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="12,10"
-                                Visibility="Collapsed">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="12,10">
                         <Button Content="Up" Style="{StaticResource SecondaryButtonStyle}"
-                                Height="34" FontSize="13" Padding="14,0" Margin="0,0,8,0"/>
+                                Height="32" FontSize="12.5" Padding="12,0" Margin="0,0,6,0"
+                                Click="LocalUp_Click"/>
                         <Button Content="New folder" Style="{StaticResource SecondaryButtonStyle}"
-                                Height="34" FontSize="13" Padding="14,0" Margin="0,0,8,0"/>
+                                Height="32" FontSize="12.5" Padding="12,0" Margin="0,0,6,0"
+                                Click="LocalNewFolder_Click"/>
                         <Button Content="Delete" Style="{StaticResource SecondaryButtonStyle}"
-                                Height="34" FontSize="13" Padding="14,0"/>
+                                Height="32" FontSize="12.5" Padding="12,0"
+                                Click="LocalDelete_Click"/>
                     </StackPanel>
 
-                    <ListBox Grid.Row="2" Style="{StaticResource ThemedListBoxStyle}"
-                             Margin="0,0,0,10" IsEnabled="False"
-                             ItemContainerStyle="{StaticResource ThemedListBoxItemStyle}"/>
+                    <ListBox x:Name="LocalList" Grid.Row="2"
+                             Style="{StaticResource ThemedListBoxStyle}"
+                             ItemContainerStyle="{StaticResource ThemedListBoxItemStyle}"
+                             Margin="0,0,0,8"
+                             MouseDoubleClick="LocalList_DoubleClick">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                        <Path Data="{StaticResource IconFiles}"
+                                              Stroke="{DynamicResource TextSecondaryBrush}"
+                                              StrokeThickness="1.6" Width="14" Height="14"
+                                              Stretch="Uniform" Margin="0,0,8,0"
+                                              VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Name}" FontSize="13"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding SizeText}"
+                                               FontSize="12" FontFamily="Consolas"
+                                               Margin="10,0,0,0" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </Grid>
             </Border>
 
             <!-- Transfer buttons -->
-            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="14,0">
-                <Button Content="Upload →" Style="{StaticResource SecondaryButtonStyle}"
-                        MinWidth="128" Margin="0,0,0,8" IsEnabled="False"/>
-                <Button Content="← Download" Style="{StaticResource SecondaryButtonStyle}"
-                        MinWidth="128" IsEnabled="False"/>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0">
+                <Button x:Name="UploadButton" Content="Upload →"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        MinWidth="118" Margin="0,0,0,8" Padding="12,6"
+                        Click="Upload_Click"/>
+                <Button x:Name="DownloadButton" Content="← Download"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        MinWidth="118" Padding="12,6"
+                        Click="Download_Click"/>
             </StackPanel>
 
-            <!-- Console -->
+            <!-- Console pane -->
             <Border Grid.Column="2" Style="{StaticResource CardStyle}" Padding="0">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -105,31 +136,60 @@
                             BorderBrush="{DynamicResource BorderBrush}">
                         <StackPanel>
                             <TextBlock Text="G350" Style="{StaticResource SectionTitleStyle}" FontSize="15"/>
-                            <TextBlock Text="/roms" FontSize="13" Margin="0,2,0,0"
-                                       TextTrimming="CharacterEllipsis"
+                            <TextBlock x:Name="RemotePathText" Text="—" FontSize="12.5" Margin="0,2,0,0"
+                                       TextTrimming="CharacterEllipsis" FontFamily="Consolas"
                                        Foreground="{DynamicResource TextSecondaryBrush}"/>
                         </StackPanel>
                     </Border>
 
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="12,10"
-                                Visibility="Collapsed">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="12,10">
                         <Button Content="Up" Style="{StaticResource SecondaryButtonStyle}"
-                                Height="34" FontSize="13" Padding="14,0" Margin="0,0,8,0"/>
+                                Height="32" FontSize="12.5" Padding="12,0" Margin="0,0,6,0"
+                                Click="RemoteUp_Click"/>
                         <Button Content="New folder" Style="{StaticResource SecondaryButtonStyle}"
-                                Height="34" FontSize="13" Padding="14,0" Margin="0,0,8,0"/>
+                                Height="32" FontSize="12.5" Padding="12,0" Margin="0,0,6,0"
+                                Click="RemoteNewFolder_Click"/>
                         <Button Content="Delete" Style="{StaticResource SecondaryButtonStyle}"
-                                Height="34" FontSize="13" Padding="14,0"/>
+                                Height="32" FontSize="12.5" Padding="12,0"
+                                Click="RemoteDelete_Click"/>
                     </StackPanel>
 
-                    <ListBox Grid.Row="2" Style="{StaticResource ThemedListBoxStyle}"
-                             Margin="0,0,0,10" IsEnabled="False"
-                             ItemContainerStyle="{StaticResource ThemedListBoxItemStyle}"/>
+                    <ListBox x:Name="RemoteList" Grid.Row="2"
+                             Style="{StaticResource ThemedListBoxStyle}"
+                             ItemContainerStyle="{StaticResource ThemedListBoxItemStyle}"
+                             Margin="0,0,0,8"
+                             MouseDoubleClick="RemoteList_DoubleClick">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                        <Path Data="{StaticResource IconFiles}"
+                                              Stroke="{DynamicResource TextSecondaryBrush}"
+                                              StrokeThickness="1.6" Width="14" Height="14"
+                                              Stretch="Uniform" Margin="0,0,8,0"
+                                              VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Name}" FontSize="13"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding SizeText}"
+                                               FontSize="12" FontFamily="Consolas"
+                                               Margin="10,0,0,0" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </Grid>
             </Border>
         </Grid>
 
-        <TextBlock Grid.Row="3" Text="SFTP file browsing arrives in Stage 8."
-                   FontSize="13" Margin="0,14,0,0"
+        <TextBlock x:Name="ActivityText" Grid.Row="3"
+                   Text="Double-click a folder to open it. Select a file and use Upload or Download."
+                   FontSize="12.5" Margin="0,14,0,0" TextWrapping="Wrap"
                    Foreground="{DynamicResource TextMutedBrush}"/>
     </Grid>
 </UserControl>
