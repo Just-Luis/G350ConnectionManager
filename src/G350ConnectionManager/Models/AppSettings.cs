@@ -18,6 +18,12 @@ public sealed class AppSettings
     public string ScreenshotFolder { get; set; } = DefaultCaptureFolder();
     public string RecordingFolder { get; set; } = DefaultCaptureFolder();
 
+    /// <summary>
+    /// Screen pipeline quality. Persisted so the chosen trade-off survives a
+    /// restart; the sliders are the only way to change it.
+    /// </summary>
+    public CaptureSettings Capture { get; set; } = CaptureSettings.Default;
+
     private static string DefaultCaptureFolder()
     {
         var pictures = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);

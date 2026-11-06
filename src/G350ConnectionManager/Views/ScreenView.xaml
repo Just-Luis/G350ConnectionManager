@@ -73,25 +73,48 @@
                                 Padding="12,6" FontSize="12.5" HorizontalAlignment="Left"
                                 Margin="0,0,0,16" Click="ChooseFolder_Click"/>
 
-                        <TextBlock Text="Preview rate" Style="{StaticResource FieldLabelStyle}"/>
-                        <Border Style="{StaticResource SegmentGroupStyle}" HorizontalAlignment="Stretch">
-                            <UniformGrid Columns="3" MinWidth="216">
-                                <RadioButton x:Name="RateLow" Content="Low" GroupName="Rate"
-                                             Style="{StaticResource SegmentButtonStyle}"
-                                             Checked="Rate_Changed"/>
-                                <RadioButton x:Name="RateMed" Content="Medium" GroupName="Rate"
-                                             IsChecked="True"
-                                             Style="{StaticResource SegmentButtonStyle}"
-                                             Checked="Rate_Changed"/>
-                                <RadioButton x:Name="RateHigh" Content="High" GroupName="Rate"
-                                             Style="{StaticResource SegmentButtonStyle}"
-                                             Checked="Rate_Changed"/>
-                            </UniformGrid>
-                        </Border>
+                        <TextBlock Text="Resolution" Style="{StaticResource FieldLabelStyle}"/>
+                        <ComboBox x:Name="ResolutionBox" Style="{StaticResource ThemedComboBoxStyle}"
+                                  Margin="0,0,0,12" SelectionChanged="Settings_Changed">
+                            <ComboBoxItem Content="320 × 240  (fastest)" Tag="320"/>
+                            <ComboBoxItem Content="480 × 360  (balanced)" Tag="480"/>
+                            <ComboBoxItem Content="640 × 480  (native)" Tag="640" IsSelected="True"/>
+                        </ComboBox>
 
-                        <TextBlock x:Name="RateHint" FontSize="12" Margin="0,8,0,0"
-                                   TextWrapping="Wrap"
+                        <Grid Margin="0,0,0,2">
+                            <TextBlock Text="Frame rate" Style="{StaticResource FieldLabelStyle}"/>
+                            <TextBlock x:Name="FpsValue" HorizontalAlignment="Right"
+                                       FontSize="12" FontFamily="Consolas"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <Slider x:Name="FpsSlider" Minimum="1" Maximum="20" Value="6"
+                                TickFrequency="1" IsSnapToTickEnabled="True"
+                                Margin="0,0,0,12" ValueChanged="Fps_Changed"/>
+
+                        <Grid Margin="0,0,0,2">
+                            <TextBlock Text="JPEG quality" Style="{StaticResource FieldLabelStyle}"/>
+                            <TextBlock x:Name="QualityValue" HorizontalAlignment="Right"
+                                       FontSize="12" FontFamily="Consolas"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <Slider x:Name="QualitySlider" Minimum="10" Maximum="100" Value="75"
+                                TickFrequency="5" IsSnapToTickEnabled="True"
+                                Margin="0,0,0,12" ValueChanged="Quality_Changed"/>
+
+                        <Grid Margin="0,0,0,2">
+                            <TextBlock Text="Delay per frame" Style="{StaticResource FieldLabelStyle}"/>
+                            <TextBlock x:Name="DelayValue" HorizontalAlignment="Right"
+                                       FontSize="12" FontFamily="Consolas"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <Slider x:Name="DelaySlider" Minimum="0" Maximum="500" Value="0"
+                                TickFrequency="25" IsSnapToTickEnabled="True"
+                                Margin="0,0,0,8" ValueChanged="Delay_Changed"/>
+
+                        <TextBlock x:Name="RateHint" FontSize="11.5" TextWrapping="Wrap"
+                                   Margin="0,0,0,14"
                                    Foreground="{DynamicResource TextMutedBrush}"/>
+
                     </StackPanel>
                 </Border>
             </Grid>
