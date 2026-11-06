@@ -6,7 +6,7 @@
         <StackPanel MaxWidth="980" HorizontalAlignment="Left">
 
             <views:PageHeader Title="Screen"
-                              Subtitle="Capture, record or stream what is on the G350."/>
+                              Subtitle="Capture or stream what is on the G350."/>
 
             <Grid Margin="0,18,0,0">
                 <Grid.ColumnDefinitions>
@@ -16,41 +16,44 @@
 
                 <!-- Preview + actions -->
                 <StackPanel Grid.Column="0" Margin="0,0,18,0">
-                    <Border Height="292" CornerRadius="14"
+                    <Border CornerRadius="14"
                             Background="{DynamicResource PreviewVoidBrush}"
                             BorderBrush="{DynamicResource BorderBrush}"
                             BorderThickness="1">
-                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Path Data="{StaticResource IconScreen}"
-                                  Stroke="{DynamicResource TextMutedBrush}"
-                                  StrokeThickness="1.8" Width="44" Height="44"
-                                  Stretch="Uniform" HorizontalAlignment="Center"/>
-                            <TextBlock x:Name="PreviewLabel"
-                                       Text="Live G350 screen"
-                                       FontSize="15" Margin="0,12,0,0"
-                                       HorizontalAlignment="Center"
-                                       Foreground="{DynamicResource TextMutedBrush}"/>
-                            <TextBlock Text="Preview arrives in Stage 5"
-                                       FontSize="13" Margin="0,4,0,0"
-                                       HorizontalAlignment="Center"
-                                       Foreground="{DynamicResource TextMutedBrush}"/>
-                        </StackPanel>
+                        <Grid MinHeight="292">
+                            <StackPanel x:Name="PreviewPlaceholder"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Path Data="{StaticResource IconScreen}"
+                                      Stroke="{DynamicResource TextMutedBrush}"
+                                      StrokeThickness="1.8" Width="44" Height="44"
+                                      Stretch="Uniform" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="PreviewLabel"
+                                           Text="Live G350 screen"
+                                           FontSize="15" Margin="0,12,0,0"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock x:Name="PreviewHint"
+                                           Text="Start the preview to see the console."
+                                           FontSize="13" Margin="0,4,0,0"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                            </StackPanel>
+
+                            <!-- Frames are drawn here, scaled to fit. -->
+                            <Image x:Name="PreviewImage" Stretch="Uniform"
+                                   Visibility="Collapsed"
+                                   RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                        </Grid>
                     </Border>
 
                     <StackPanel Orientation="Horizontal" Margin="0,14,0,0" VerticalAlignment="Center">
-                        <Button Content="Take screenshot" Style="{StaticResource SecondaryButtonStyle}"
-                                Margin="0,0,12,0" IsEnabled="False"/>
-                        <Button Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,12,0" IsEnabled="False">
-                            <StackPanel Orientation="Horizontal">
-                                <Ellipse Width="10" Height="10"
-                                         Fill="{DynamicResource AccentBrush}"
-                                         VerticalAlignment="Center"/>
-                                <TextBlock Text="Record" Margin="8,0,0,0"/>
-                            </StackPanel>
-                        </Button>
-                        <Button Content="Start streaming" Style="{StaticResource PrimaryButtonStyle}"
-                                IsEnabled="False"/>
-                        <TextBlock Text="00:00" Margin="16,0,0,0" FontSize="15"
+                        <Button x:Name="ScreenshotButton" Content="Take screenshot"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Margin="0,0,12,0" Click="Screenshot_Click"/>
+                        <Button x:Name="PreviewButton" Content="Start preview"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Click="Preview_Click"/>
+                        <TextBlock x:Name="PreviewStatus" Margin="16,0,0,0" FontSize="13"
                                    VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </StackPanel>
@@ -62,29 +65,49 @@
                         <TextBlock Text="Settings" Style="{StaticResource SectionTitleStyle}"
                                    Margin="0,0,0,14"/>
 
-                        <TextBlock Text="Save to" Style="{StaticResource FieldLabelStyle}"/>
+                        <TextBlock Text="Save screenshots to" Style="{StaticResource FieldLabelStyle}"/>
                         <TextBox x:Name="SaveToBox" Style="{StaticResource TextInputStyle}"
-                                 Text="%USERPROFILE%\Pictures\G350 Captures"
-                                 IsEnabled="False" Margin="0,0,0,16"/>
+                                 Margin="0,0,0,6" IsReadOnly="True"/>
+                        <Button x:Name="ChooseFolderButton" Content="Choose folder…"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Padding="12,6" FontSize="12.5" HorizontalAlignment="Left"
+                                Margin="0,0,0,16" Click="ChooseFolder_Click"/>
 
-                        <TextBlock Text="Quality" Style="{StaticResource FieldLabelStyle}"/>
+                        <TextBlock Text="Preview rate" Style="{StaticResource FieldLabelStyle}"/>
                         <Border Style="{StaticResource SegmentGroupStyle}" HorizontalAlignment="Stretch">
                             <UniformGrid Columns="3" MinWidth="216">
-                                <RadioButton Content="Low" GroupName="Quality"
-                                             Style="{StaticResource SegmentButtonStyle}"/>
-                                <RadioButton Content="Medium" GroupName="Quality" IsChecked="True"
-                                             Style="{StaticResource SegmentButtonStyle}"/>
-                                <RadioButton Content="High" GroupName="Quality"
-                                             Style="{StaticResource SegmentButtonStyle}"/>
+                                <RadioButton x:Name="RateLow" Content="Low" GroupName="Rate"
+                                             Style="{StaticResource SegmentButtonStyle}"
+                                             Checked="Rate_Changed"/>
+                                <RadioButton x:Name="RateMed" Content="Medium" GroupName="Rate"
+                                             IsChecked="True"
+                                             Style="{StaticResource SegmentButtonStyle}"
+                                             Checked="Rate_Changed"/>
+                                <RadioButton x:Name="RateHigh" Content="High" GroupName="Rate"
+                                             Style="{StaticResource SegmentButtonStyle}"
+                                             Checked="Rate_Changed"/>
                             </UniformGrid>
                         </Border>
 
-                        <TextBlock Text="Stream to" Style="{StaticResource FieldLabelStyle}" Margin="0,16,0,0"/>
-                        <TextBox x:Name="StreamToBox" Style="{StaticResource TextInputStyle}"
-                                 Text="http://localhost:8080" IsEnabled="False"/>
+                        <TextBlock x:Name="RateHint" FontSize="12" Margin="0,8,0,0"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextMutedBrush}"/>
                     </StackPanel>
                 </Border>
             </Grid>
+
+            <!-- Capture history -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,18,0,0">
+                <StackPanel>
+                    <TextBlock Text="Screenshots" Style="{StaticResource SectionTitleStyle}"/>
+                    <TextBlock Text="Saved captures open with your default image viewer."
+                               Style="{StaticResource BodyTextStyle}" Margin="0,4,0,12"/>
+                    <TextBlock x:Name="HistoryText" Text="No screenshots yet."
+                               FontSize="12.5" FontFamily="Consolas"
+                               TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextMutedBrush}"/>
+                </StackPanel>
+            </Border>
 
         </StackPanel>
     </ScrollViewer>

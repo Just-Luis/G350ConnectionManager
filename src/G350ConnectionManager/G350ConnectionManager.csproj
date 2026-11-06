@@ -14,13 +14,23 @@
     <AssemblyTitle>G350 Companion — Battle XP G350 Connection Manager</AssemblyTitle>
     <Company>Just-Luis</Company>
     <Copyright>MIT Licensed</Copyright>
-    <Version>0.4.5</Version>
-    <AssemblyVersion>0.4.5.0</AssemblyVersion>
-    <FileVersion>0.4.5.0</FileVersion>
+    <Version>0.5.0</Version>
+    <AssemblyVersion>0.5.0.0</AssemblyVersion>
+    <FileVersion>0.5.0.0</FileVersion>
 
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
+
+  <!--
+    The console-side grabber is embedded in the exe and uploaded to /tmp on each
+    capture session, so the device never holds a copy that can drift from the
+    app's protocol.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\console\g350_grabber.py"
+                      LogicalName="G350ConnectionManager.g350_grabber.py" />
+  </ItemGroup>
 
   <ItemGroup>
     <!--
