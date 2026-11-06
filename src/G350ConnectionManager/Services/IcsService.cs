@@ -193,12 +193,12 @@ public sealed class IcsService
     /// Enables or disables ICS by running the elevated helper.
     /// Returns (ok, message); never throws.
     /// </summary>
-    public async Task<(bool Ok, string Message)> SetSharingAsync(
+    public async Task<(bool Ok, string Message, IcsSnapshot? After)> SetSharingAsync(
         bool enable, string sourceName, string targetName)
     {
         var exe = Environment.ProcessPath;
         if (string.IsNullOrEmpty(exe))
-            return (false, "The app could not locate its own executable.");
+            return (false, "The app could not locate its own executable.", null);
 
         var outPath = Path.Combine(Path.GetTempPath(), $"g350-ics-toggle-{Guid.NewGuid():N}.json");
         var op = enable ? "enable" : "disable";
@@ -217,36 +217,50 @@ public sealed class IcsService
 
             using var proc = System.Diagnostics.Process.Start(psi);
             if (proc is null)
-                return (false, "Could not start the elevated helper.");
+                return (false, "Could not start the elevated helper.", null);
 
             await proc.WaitForExitAsync();
 
             if (!File.Exists(outPath))
-                return (false, "The elevated helper produced no result.");
+                return (false, "The elevated helper produced no result.", null);
 
             var payload = JsonSerializer.Deserialize<TogglePayload>(
                 await File.ReadAllTextAsync(outPath));
 
             if (payload is null)
-                return (false, "The elevated helper returned unreadable data.");
+                return (false, "The elevated helper returned unreadable data.", null);
 
-            if (!payload.Ok) return (false, payload.Message);
+            // The helper ran elevated and already observed the settled state, so
+            // it hands back the post-change snapshot. Re-reading from here would
+            // launch a second elevated process — i.e. a second UAC prompt — for
+            // information that was just collected inside the first one.
+            var after = payload.Snapshot is null
+                ? null
+                : new IcsSnapshot(
+                    Ok: true,
+                    Message: payload.Message,
+                    SharingInstalled: payload.Snapshot.SharingInstalled,
+                    ServiceRunning: payload.Snapshot.ServiceRunning,
+                    ScopeAddress: payload.Snapshot.ScopeAddress,
+                    Connections: payload.Snapshot.Connections);
+
+            if (!payload.Ok) return (false, payload.Message, after);
 
             // Applied is false when Windows had not settled within the helper's
             // own timeout. Report that honestly rather than showing a stale panel.
             return payload.Applied
-                ? (true, payload.Message)
-                : (false, payload.Message + " Windows has not confirmed the change yet — press Refresh in a moment.");
+                ? (true, payload.Message, after)
+                : (false, payload.Message + " Windows has not confirmed the change yet.", after);
         }
         catch (System.ComponentModel.Win32Exception ex)
         {
             return ex.NativeErrorCode == 1223
-                ? (false, "The Windows elevation prompt was declined. Nothing was changed.")
-                : (false, ex.Message);
+                ? (false, "The Windows elevation prompt was declined. Nothing was changed.", null)
+                : (false, ex.Message, null);
         }
         catch (Exception ex)
         {
-            return (false, ex.Message);
+            return (false, ex.Message, null);
         }
         finally
         {
@@ -341,8 +355,65 @@ public sealed class IcsService
             payload.Message = $"{ex.GetType().Name}: {ex.Message}";
         }
 
+        // Collect the settled state while still elevated, so the caller does not
+        // have to raise a second elevation prompt just to refresh the panel.
+        payload.Snapshot = CaptureState();
+
         WriteToggle(outPath, payload);
         return payload.Ok ? 0 : 3;
+    }
+
+    /// <summary>Reads ICS state. Caller must already be elevated.</summary>
+    private static ProbePayload CaptureState()
+    {
+        var payload = new ProbePayload();
+
+        try
+        {
+            payload.ServiceRunning = IsServiceRunning();
+            payload.ScopeAddress = ReadScopeAddress();
+
+            var type = Type.GetTypeFromProgID("HNetCfg.HNetShare");
+            if (type is null) return payload;
+
+            dynamic mgr = Activator.CreateInstance(type)!;
+            payload.SharingInstalled = (bool)mgr.SharingInstalled;
+
+            foreach (dynamic conn in mgr.EnumEveryConnection)
+            {
+                var entry = new IcsConnection("", "", "", false, false, 0);
+                try
+                {
+                    dynamic props = mgr.NetConnectionProps(conn);
+                    entry = entry with
+                    {
+                        Name = (string)props.Name,
+                        DeviceName = (string)props.DeviceName,
+                        Guid = (string)props.Guid,
+                        IsConnected = (int)props.Status == 2
+                    };
+
+                    dynamic cfg = mgr.INetSharingConfigurationForINetConnection(conn);
+                    entry = entry with
+                    {
+                        SharingEnabled = (bool)cfg.SharingEnabled,
+                        SharingType = (int)cfg.SharingConnectionType
+                    };
+                }
+                catch
+                {
+                    continue;
+                }
+
+                payload.Connections.Add(entry);
+            }
+        }
+        catch (Exception ex)
+        {
+            payload.Error = $"{ex.GetType().Name}: {ex.Message}";
+        }
+
+        return payload;
     }
 
     /// <summary>
@@ -414,6 +485,7 @@ public sealed class IcsService
         public bool Ok { get; set; }
         public bool Applied { get; set; }
         public string Message { get; set; } = string.Empty;
+        public ProbePayload? Snapshot { get; set; }
     }
 
     private static bool IsServiceRunning()
@@ -453,7 +525,7 @@ public sealed class IcsService
         DefaultIgnoreCondition = JsonIgnoreCondition.Never
     };
 
-    private sealed class ProbePayload
+    internal sealed class ProbePayload
     {
         public bool SharingInstalled { get; set; }
         public bool ServiceRunning { get; set; }
