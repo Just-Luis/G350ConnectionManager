@@ -37,6 +37,16 @@ public sealed record CaptureSettings
 
     /// <summary>Total time one frame is allowed to occupy, in ms.</summary>
     public double FrameBudgetMs => (1000.0 / Math.Max(0.5, Fps)) + DelayMs;
+
+    /// <summary>
+    /// Frame rate after the per-frame delay is taken into account.
+    ///
+    /// Delay is an extra pause on top of the frame budget, so the effective rate
+    /// is lower than <see cref="Fps"/>. Recording needs this: the encoder is
+    /// told a single rate for the whole file, and using the nominal value would
+    /// play the result back too fast.
+    /// </summary>
+    public double EffectiveFps => FrameBudgetMs <= 0 ? Fps : 1000.0 / FrameBudgetMs;
 }
 
 /// <summary>
@@ -70,6 +80,22 @@ public static class FrameConverter
                 (double)settings.Height / frame.Height));
         scaled.Freeze();
         return scaled;
+    }
+
+    /// <summary>
+    /// Scales a raw frame to the requested size and returns packed BGRA rows,
+    /// ready to pipe into ffmpeg.
+    /// </summary>
+    public static byte[] ToRawBgra(CapturedFrame frame, int width, int height)
+    {
+        if (frame.Width == width && frame.Height == height)
+            return frame.Pixels;
+
+        var bitmap = ToBitmap(frame, new CaptureSettings { Width = width });
+        var stride = bitmap.PixelWidth * 4;
+        var buffer = new byte[stride * bitmap.PixelHeight];
+        bitmap.CopyPixels(buffer, stride, 0);
+        return buffer;
     }
 
     /// <summary>Encodes a frame as JPEG at the configured quality.</summary>

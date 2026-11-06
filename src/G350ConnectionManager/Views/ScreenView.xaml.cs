@@ -1,3 +1,4 @@
+using System.Windows.Threading;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
@@ -15,6 +16,8 @@ namespace G350ConnectionManager.Views;
 public partial class ScreenView : UserControl
 {
     private readonly ScreenCaptureService _capture = new();
+    private readonly RecordingService _recorder = new();
+    private DispatcherTimer? _recordTimer;
     private readonly List<string> _history = new();
 
     private CancellationTokenSource? _cts;
@@ -45,7 +48,7 @@ public partial class ScreenView : UserControl
 
         SaveToBox.Text = DefaultSaveFolder();
 
-        Unloaded += (_, _) => { Unsubscribe(); StopPreview(); };
+        Unloaded += (_, _) => { Unsubscribe(); StopRecording(); StopPreview(); };
         Loaded += (_, _) => Subscribe();
 
         UpdateRateHint();
@@ -302,6 +305,79 @@ public partial class ScreenView : UserControl
         PreviewImage.Visibility = Visibility.Collapsed;
         PreviewPlaceholder.Visibility = Visibility.Visible;
         PreviewImage.Source = null;
+    }
+
+    // ------------------------------------------------------------- recording
+
+    private void Record_Click(object sender, RoutedEventArgs e)
+    {
+        if (_recorder.IsRecording)
+        {
+            StopRecording();
+            return;
+        }
+
+        var host = App.Link.Current.ConsoleIp;
+        if (string.IsNullOrEmpty(host))
+        {
+            PreviewStatus.Text = "Connect the console first.";
+            return;
+        }
+
+        var folder = App.Settings.RecordingFolder;
+        if (!_recorder.Start(host, _settings, folder))
+        {
+            PreviewStatus.Text = _recorder.LastError ?? "Could not start recording.";
+            return;
+        }
+
+        RecordButton.Content = "Stop recording";
+        RecordButton.Style = (Style)FindResource("PrimaryButtonStyle");
+
+        _recordTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _recordTimer.Tick += (_, _) => UpdateRecordBadge();
+        _recordTimer.Start();
+        UpdateRecordBadge();
+    }
+
+    private void UpdateRecordBadge()
+    {
+        if (!_recorder.IsRecording)
+        {
+            StopRecording();
+            return;
+        }
+
+        var file = Path.GetFileName(_recorder.CurrentPath ?? "");
+        PreviewStatus.Text = $"● REC  {_recorder.Frames} frames  ·  {file}";
+    }
+
+    private void StopRecording()
+    {
+        _recordTimer?.Stop();
+        _recordTimer = null;
+
+        if (!_recorder.IsRecording && _recorder.CurrentPath is null)
+            return;
+
+        var path = _recorder.CurrentPath;
+        var frames = _recorder.Frames;
+        _recorder.Stop();
+
+        RecordButton.Content = "Record";
+        RecordButton.Style = (Style)FindResource("SecondaryButtonStyle");
+
+        if (frames == 0)
+        {
+            PreviewStatus.Text = "Recording stopped before any frames were captured.";
+            return;
+        }
+
+        PreviewStatus.Text = $"Saved {Path.GetFileName(path)}  ({frames} frames)";
+
+        _history.Insert(0, $"{DateTime.Now:HH:mm:ss}  {Path.GetFileName(path)}  ({frames} frames)");
+        if (_history.Count > 8) _history.RemoveAt(_history.Count - 1);
+        HistoryText.Text = string.Join("\n", _history);
     }
 
     // ------------------------------------------------------------ screenshot
