@@ -1,5 +1,10 @@
 # 🧪 Battery Test — Stage 5 (Screen preview & screenshots)
 
+> **v0.5.1 changed the capture path.** The grabber now always runs via `sudo`,
+> because DRM capture needs it (see release notes). The console will therefore
+> ask for nothing — the password is supplied by the app — but this is the reason
+> capture works in EmulationStation at all.
+
 Read-only with respect to the console: it uploads a small capture script to
 `/tmp`, runs it for the duration of the session, and removes the process when
 stopped. Nothing is installed permanently and no console files are modified.
@@ -80,6 +85,7 @@ The console renders through DRM rather than fbdev, and uses a different backend.
 | Step | Expected |
 | :--- | :--- |
 | ☐ On the console press **[B] Exit to EmulationStation** | ES starts |
+| ☐ Verify it is really the DRM path | The preview shows the ES theme, not a black frame |
 | ☐ Start the preview | EmulationStation's UI appears, not a black or frozen image |
 | ☐ Launch a game, keep previewing | The game is visible |
 | ☐ Exit the game | Preview recovers on its own |

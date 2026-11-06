@@ -18,9 +18,13 @@ Two capture backends, in order:
  2. /dev/fb0. Used for the plain text console and as a fallback when DRM is
     unavailable.
 
-Neither backend needs root: /dev/fb0 is root:video rw-rw---- and /dev/dri/card0
-is the same, and the stock 'ark' user is in the video group. Opening DRM
-read-only avoids contesting DRM mastership with a running game.
+Access: /dev/fb0 can be read by the 'video' group, so the text console works
+without root. DRM cannot: measured on hardware, drmModeGetFB returns handle=0
+for an unprivileged process and drmPrimeHandleToFD then fails, so the GPU
+buffer cannot be exported. The same call as root returns a valid handle and
+the full frame. EmulationStation and RetroArch render through DRM, so capturing
+them requires the grabber itself to run elevated -- which is what the older
+companion script did as well.
 
 Modes:
     --once            write exactly one frame and exit (screenshots)
@@ -226,6 +230,21 @@ class FbCapture:
             return None
 
 
+# --------------------------------------------------------------- capability
+
+
+def drm_needs_root():
+    """True when /dev/dri/card0 cannot be used without elevation.
+
+    Detected rather than assumed: the driver decides, and a future kernel or a
+    different device tree node may allow unprivileged export.
+    """
+    probe = DrmCapture()
+    if not probe.ok:
+        return False
+    return probe.grab() is None
+
+
 # ------------------------------------------------------------------- output
 
 
@@ -256,6 +275,12 @@ def main():
 
     drm = DrmCapture()
     fb = FbCapture()
+
+    if os.geteuid() != 0 and drm_needs_root():
+        # The caller can re-run us elevated; do not silently degrade to a blank
+        # fb0, which is what made this look like "no frame available".
+        sys.stderr.write("NEED_ROOT\n")
+        sys.stderr.flush()
     out = sys.stdout.buffer
     delay = 1.0 / max(1.0, args.fps)
 
