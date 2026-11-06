@@ -1,6 +1,9 @@
+using System.IO;
 using System.Windows;
+using Microsoft.Win32;
 using System.Windows.Controls;
 using System.Windows.Media;
+using G350ConnectionManager.Models;
 using G350ConnectionManager.Services;
 
 namespace G350ConnectionManager.Views;
@@ -109,18 +112,58 @@ public partial class SettingsView : UserControl
         CollapsedCheck.IsChecked = s.StartCollapsed;
         ScreenshotFolderBox.Text = s.ScreenshotFolder;
         RecordingFolderBox.Text = s.RecordingFolder;
-
-        ScreenshotFolderBox.TextChanged += (_, _) =>
-        {
-            if (_loading) return;
-            App.Settings.ScreenshotFolder = ScreenshotFolderBox.Text;
-            App.Settings.Save();
-        };
-        RecordingFolderBox.TextChanged += (_, _) =>
-        {
-            if (_loading) return;
-            App.Settings.RecordingFolder = RecordingFolderBox.Text;
-            App.Settings.Save();
-        };
     }
+
+    // ----------------------------------------------------------- folders
+
+    private void ChooseScreenshotFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var picked = PickFolder("Where should screenshots be saved?",
+                                App.Settings.ScreenshotFolder);
+        if (picked is null) return;
+
+        App.Settings.ScreenshotFolder = picked;
+        ScreenshotFolderBox.Text = picked;
+        App.Settings.Save();
+    }
+
+    private void ChooseRecordingFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var picked = PickFolder("Where should recordings be saved?",
+                                App.Settings.RecordingFolder);
+        if (picked is null) return;
+
+        App.Settings.RecordingFolder = picked;
+        RecordingFolderBox.Text = picked;
+        App.Settings.Save();
+    }
+
+    /// <summary>Points both outputs at one folder.</summary>
+    private void SameFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var picked = PickFolder("Use one folder for screenshots and recordings",
+                                App.Settings.ScreenshotFolder);
+        if (picked is null) return;
+
+        App.Settings.ScreenshotFolder = picked;
+        App.Settings.RecordingFolder = picked;
+        ScreenshotFolderBox.Text = picked;
+        RecordingFolderBox.Text = picked;
+        App.Settings.Save();
+    }
+
+    private string? PickFolder(string title, string current)
+    {
+        var dialog = new OpenFolderDialog
+        {
+            Title = title,
+            InitialDirectory = Directory.Exists(current)
+                ? current
+                : DefaultCaptureFolder()
+        };
+
+        return dialog.ShowDialog() == true ? dialog.FolderName : null;
+    }
+
+    private static string DefaultCaptureFolder() => AppSettings.DefaultCaptureFolder();
 }
