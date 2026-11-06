@@ -12,10 +12,14 @@ namespace G350ConnectionManager.Services;
 /// probes for 192.168.137.1 — but that logic only ran when the user pressed
 /// [A] Start Services on the device.
 ///
-/// The script now exposes <c>--refresh-net</c>, which performs exactly that
-/// address+route step without touching sshd or the g_ether gadget. That matters:
-/// the script's normal stop/start path unloads g_ether and flushes usb0, which
-/// would destroy the SSH session used to issue the request.
+/// The script exposes <c>--start-services</c>, which does exactly what pressing
+/// [A] on the device does: re-address usb0, re-pick the gateway, restart sshd and
+/// samba, rewrite resolv.conf. It is safe to run over the SSH session that asked
+/// for it because it never unloads the g_ether gadget, so usb0 keeps its
+/// addresses throughout -- at worst a running command is interrupted.
+///
+/// A tier below it, <c>--refresh-net</c> does only the addressing and route, with
+/// no service restarts.
 ///
 /// See docs/CONSOLE_CONTROL_INTERFACE.md in the G350Wired repository.
 /// </summary>
@@ -28,14 +32,60 @@ public sealed class ConsoleNetworkService
     private const string ScriptPath = "/opt/system/Tools/USB_Network_Manager.sh";
 
     /// <summary>
-    /// Runs <c>--refresh-net</c> on the console. Returns (ok, gateway, message);
+    /// Runs <c>--start-services</c> on the console. Returns (ok, gateway, message);
     /// gateway is null when the console did not report one.
     /// </summary>
     /// <summary>Both addresses the console can answer on.</summary>
     private static readonly string[] CandidateHosts = { "192.168.137.2", "192.168.7.2" };
 
     /// <summary>
-    /// Runs <c>--refresh-net</c>, trying every address the console may be on.
+    /// Returns the addresses that actually answer right now.
+    ///
+    /// This exists because SSH.NET's default connect timeout is ~21 seconds, so
+    /// one dead candidate made every refresh feel like it had hung. A TCP probe
+    /// rejects a dead address in well under a second, and only the live ones are
+    /// handed to SSH.
+    /// </summary>
+    private static List<string> LiveHosts(string? preferred = null)
+    {
+        var order = new List<string>();
+        if (!string.IsNullOrWhiteSpace(preferred)) order.Add(preferred);
+        foreach (var candidate in CandidateHosts)
+            if (!order.Contains(candidate)) order.Add(candidate);
+
+        var live = new List<string>();
+        foreach (var host in order)
+        {
+            try
+            {
+                using var tcp = new System.Net.Sockets.TcpClient();
+                var connect = tcp.ConnectAsync(host, 22);
+                if (connect.Wait(TimeSpan.FromMilliseconds(700)) && tcp.Connected)
+                    live.Add(host);
+            }
+            catch
+            {
+                // Not there; try the next candidate.
+            }
+        }
+
+        return live;
+    }
+
+    private static SshClient Connect(string host)
+    {
+        var client = new SshClient(host, User, Password)
+        {
+            // Belt and braces: even a host that passed the TCP probe should not
+            // be allowed to stall the whole operation.
+            ConnectionInfo = { Timeout = TimeSpan.FromSeconds(5) }
+        };
+        client.Connect();
+        return client;
+    }
+
+    /// <summary>
+    /// Runs <c>--start-services</c>, trying every address the console may be on.
     ///
     /// A single address is not enough: the whole point of the refresh is that the
     /// PC's subnet just changed, so the address that worked a moment ago is often
@@ -50,11 +100,13 @@ public sealed class ConsoleNetworkService
         var tried = new List<string>();
         string? lastError = null;
 
-        // Prefer the address the app currently believes in, then the other one.
-        var order = new List<string>();
-        if (!string.IsNullOrWhiteSpace(host)) order.Add(host);
-        foreach (var candidate in CandidateHosts)
-            if (!order.Contains(candidate)) order.Add(candidate);
+        // Only talk to addresses that answer; a dead candidate would otherwise
+        // burn ~21 seconds in the SSH connect.
+        var order = LiveHosts(host);
+        if (order.Count == 0)
+            return (false, null,
+                $"Could not reach the console on {string.Join(" or ", CandidateHosts)}. "
+                + "Check the cable and that services are running.");
 
         foreach (var target in order)
         {
@@ -82,10 +134,9 @@ public sealed class ConsoleNetworkService
 
         try
         {
-            using var client = new SshClient(host, User, Password);
-            client.Connect();
+            using var client = Connect(host);
 
-            var result = Run(client, $"bash {ScriptPath} --refresh-net");
+            var result = Run(client, $"bash {ScriptPath} --start-services");
             client.Disconnect();
 
             foreach (var line in result.Split('\n'))
@@ -105,8 +156,9 @@ public sealed class ConsoleNetworkService
             }
 
             return (false, null,
-                "The console did not recognise the refresh command. "
-                + "Update USB_Network_Manager.sh on the device (see docs/CONSOLE_CONTROL_INTERFACE.md).");
+                "The console did not recognise the command. Update "
+                + "USB_Network_Manager.sh on the device to v1.6.0 or later "
+                + "(see docs/CONSOLE_CONTROL_INTERFACE.md).");
         }
         catch (Exception ex)
         {
@@ -129,17 +181,11 @@ public sealed class ConsoleNetworkService
 
     private static bool HasInternet(string host)
     {
-        var order = new List<string>();
-        if (!string.IsNullOrWhiteSpace(host)) order.Add(host);
-        foreach (var candidate in CandidateHosts)
-            if (!order.Contains(candidate)) order.Add(candidate);
-
-        foreach (var target in order)
+        foreach (var target in LiveHosts(host))
         {
             try
             {
-                using var client = new SshClient(target, User, Password);
-                client.Connect();
+                using var client = Connect(target);
                 var result = Run(client,
                     "timeout 5 ping -c1 -W2 1.1.1.1 >/dev/null 2>&1 && echo OK || echo FAIL");
                 client.Disconnect();
