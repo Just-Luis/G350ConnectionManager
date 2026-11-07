@@ -33,7 +33,7 @@ public partial class HomeView : UserControl
     /// </summary>
     private bool _userToggled;
 
-    private readonly SharingCoordinator _sharing = new();
+    private SharingCoordinator Sharing => App.Sharing;
 
     public HomeView()
     {
@@ -125,7 +125,7 @@ public partial class HomeView : UserControl
 
         try
         {
-            var result = await _sharing.SetSharingAsync(enable);
+            var result = await Sharing.SetSharingAsync(enable);
 
             if (!result.Ok)
             {

@@ -23,10 +23,41 @@ public sealed class SharingCoordinator
     public bool IsBusy { get; private set; }
 
     /// <summary>
+    /// The last snapshot read or produced by a toggle, or null before the first
+    /// read.
+    ///
+    /// Held here rather than in a view because two pages show sharing state.
+    /// With a copy per view, toggling on Home left the Network page showing a
+    /// stale state and, worse, its own "Turn on sharing" button on a connection
+    /// that was already shared - so the two pages disagreed about reality.
+    /// </summary>
+    public IcsSnapshot? Last { get; private set; }
+
+    /// <summary>Raised whenever <see cref="Last"/> changes.</summary>
+    public event EventHandler<IcsSnapshot>? Changed;
+
+    /// <summary>
     /// Reads the current sharing state. Elevated, so only call this from an
     /// explicit user action — never on a timer or on page load.
     /// </summary>
-    public Task<IcsSnapshot> ReadAsync() => _ics.ReadAsync();
+    public async Task<IcsSnapshot> ReadAsync()
+    {
+        var snapshot = await _ics.ReadAsync();
+        Publish(snapshot);
+        return snapshot;
+    }
+
+    /// <summary>
+    /// True once sharing has been read at least once this session, which is what
+    /// lets a view offer the controls before the user has pressed Check.
+    /// </summary>
+    public bool HasState => Last is not null;
+
+    private void Publish(IcsSnapshot snapshot)
+    {
+        Last = snapshot;
+        Changed?.Invoke(this, snapshot);
+    }
 
     /// <summary>Outcome of one toggle, for the caller to render.</summary>
     public sealed record Result(
@@ -91,6 +122,11 @@ public sealed class SharingCoordinator
                 source?.Name ?? snapshot.PublicConnection?.Name ?? string.Empty,
                 console?.Name ?? string.Empty,
                 targetGuid);
+
+            // Publish before returning so every other page repaints even when the
+            // operation failed - a failed enable still changed nothing, and the
+            // other page should stop showing it as on.
+            if (after is not null) Publish(after);
 
             if (!ok)
                 return new Result(false, message, after ?? snapshot, false, false, null);

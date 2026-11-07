@@ -260,23 +260,27 @@
                                            FontFamily="Consolas" TextWrapping="Wrap"
                                            Foreground="{DynamicResource TextMutedBrush}"/>
 
-                                <!-- Act on the snapshot. -->
-                                <StackPanel x:Name="IcsActions" Orientation="Horizontal"
-                                            Margin="0,14,0,0">
-                                    <Button x:Name="IcsEnableButton"
-                                            Style="{StaticResource PrimaryButtonStyle}"
-                                            Content="Turn on sharing"
-                                            Padding="16,8" FontSize="13"
-                                            Click="IcsEnable_Click"/>
-                                    <Button x:Name="IcsDisableButton"
-                                            Style="{StaticResource SecondaryButtonStyle}"
-                                            Content="Turn off sharing"
-                                            Margin="10,0,0,0"
-                                            Padding="16,8" FontSize="13"
-                                            Click="IcsDisable_Click"/>
-                                </StackPanel>
 
+                            </StackPanel>
 
+                            <!-- The controls live outside IcsDetail on purpose.
+                                 That panel stays collapsed until a snapshot has
+                                 been read, so anything inside it is invisible
+                                 before the first Check - which made sharing look
+                                 permanently unavailable. -->
+                            <StackPanel x:Name="IcsActions" Margin="0,14,0,0"
+                                        Orientation="Horizontal">
+                                <Button x:Name="IcsEnableButton"
+                                        Style="{StaticResource PrimaryButtonStyle}"
+                                        Content="Turn on sharing"
+                                        Padding="16,8" FontSize="13"
+                                        Click="IcsEnable_Click"/>
+                                <Button x:Name="IcsDisableButton"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Content="Turn off sharing"
+                                        Margin="10,0,0,0"
+                                        Padding="16,8" FontSize="13"
+                                        Click="IcsDisable_Click"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
