@@ -34,6 +34,46 @@
                 </Grid>
             </Border>
 
+            <!--
+                Quick actions. The two things a user does every single session,
+                in the order they are done: bring the link up, then optionally
+                share the PC's connection with it.
+            -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,18,0,0" Padding="16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button x:Name="ConnectButton" Grid.Column="0"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Content="Connect"
+                            MinWidth="132"
+                            Click="Connect_Click"/>
+
+                    <StackPanel Grid.Column="1" Margin="18,0,0,0" VerticalAlignment="Center">
+                        <TextBlock x:Name="ActionHeadline" Text="Not connected"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <TextBlock x:Name="ActionDetail"
+                                   Text="Plug in the USB cable and switch the console to PC mode."
+                                   Style="{StaticResource BodyTextStyle}"
+                                   Margin="0,2,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <ToggleButton x:Name="ShareWifiToggle" Grid.Column="2"
+                                  Style="{StaticResource ToggleSwitchStyle}"
+                                  Content="Share Wi-Fi"
+                                  VerticalAlignment="Center"
+                                  ToolTip="Give the console internet through this PC's Wi-Fi"
+                                  Checked="ShareWifi_Changed"
+                                  Unchecked="ShareWifi_Changed"/>
+                </Grid>
+            </Border>
+
             <!-- Three steps -->
             <UniformGrid Columns="5" Margin="0,18,0,0">
                 <Border Style="{StaticResource CardStyle}" Margin="0,0,6,0">
@@ -48,7 +88,8 @@
                                   Width="17" Height="17" Stretch="Uniform"
                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="Network" Style="{StaticResource SectionTitleStyle}" Margin="0,10,0,0"/>
+                        <TextBlock Text="Network" Style="{StaticResource SectionTitleStyle}"
+                                   Margin="0,10,0,0" TextWrapping="Wrap"/>
                         <TextBlock x:Name="Step1Text" Text="Checking…"
                                    Style="{StaticResource BodyTextStyle}" Margin="0,4,0,0"
                                    TextTrimming="CharacterEllipsis"/>
@@ -67,7 +108,8 @@
                                   Width="17" Height="17" Stretch="Uniform"
                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="Internet sharing" Style="{StaticResource SectionTitleStyle}" Margin="0,10,0,0"/>
+                        <TextBlock Text="Internet sharing" Style="{StaticResource SectionTitleStyle}"
+                                   Margin="0,10,0,0" TextWrapping="Wrap"/>
                         <TextBlock x:Name="Step2Text" Text="Checking…"
                                    Style="{StaticResource BodyTextStyle}" Margin="0,4,0,0"
                                    TextTrimming="CharacterEllipsis"/>
@@ -86,7 +128,8 @@
                                   Width="17" Height="17" Stretch="Uniform"
                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="Screen" Style="{StaticResource SectionTitleStyle}" Margin="0,10,0,0"/>
+                        <TextBlock Text="Screen" Style="{StaticResource SectionTitleStyle}"
+                                   Margin="0,10,0,0" TextWrapping="Wrap"/>
                         <TextBlock x:Name="Step3Text" Text="Ready"
                                    Style="{StaticResource BodyTextStyle}" Margin="0,4,0,0"
                                    TextTrimming="CharacterEllipsis"/>
@@ -105,7 +148,8 @@
                                   Width="17" Height="17" Stretch="Uniform"
                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="Files" Style="{StaticResource SectionTitleStyle}" Margin="0,10,0,0"/>
+                        <TextBlock Text="Files" Style="{StaticResource SectionTitleStyle}"
+                                   Margin="0,10,0,0" TextWrapping="Wrap"/>
                         <TextBlock x:Name="Step4Text" Text="—"
                                    Style="{StaticResource BodyTextStyle}" Margin="0,4,0,0"
                                    TextTrimming="CharacterEllipsis"/>
@@ -124,7 +168,8 @@
                                   Width="17" Height="17" Stretch="Uniform"
                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="Console" Style="{StaticResource SectionTitleStyle}" Margin="0,10,0,0"/>
+                        <TextBlock Text="Console" Style="{StaticResource SectionTitleStyle}"
+                                   Margin="0,10,0,0" TextWrapping="Wrap"/>
                         <TextBlock x:Name="Step5Text" Text="—"
                                    Style="{StaticResource BodyTextStyle}" Margin="0,4,0,0"
                                    TextTrimming="CharacterEllipsis"/>
