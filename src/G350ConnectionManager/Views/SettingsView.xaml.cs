@@ -112,6 +112,44 @@ public partial class SettingsView : UserControl
         CollapsedCheck.IsChecked = s.StartCollapsed;
         ScreenshotFolderBox.Text = s.ScreenshotFolder;
         RecordingFolderBox.Text = s.RecordingFolder;
+        ConsoleUserBox.Text = s.ConsoleUser;
+        ConsolePasswordBox.Password = s.ConsolePassword;
+        ShowConsoleAccountHint();
+    }
+
+    // ----------------------------------------------------- console account
+
+    /// <summary>
+    /// Persists the console account and applies it immediately, so a change takes
+    /// effect without a restart. Blank fields fall back to the ArkOS defaults,
+    /// which is why the hint describes what will actually be used.
+    /// </summary>
+    private void ConsoleAccount_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+
+        var user = ConsoleUserBox.Text.Trim();
+        var password = ConsolePasswordBox.Password;
+
+        if (App.Settings.ConsoleUser == user && App.Settings.ConsolePassword == password)
+            return;
+
+        App.Settings.ConsoleUser = user;
+        App.Settings.ConsolePassword = password;
+        App.Settings.Save();
+
+        Models.ConsoleCredentials.Apply(user, password);
+        ShowConsoleAccountHint();
+    }
+
+    private void ShowConsoleAccountHint()
+    {
+        var usingDefaults = string.IsNullOrWhiteSpace(App.Settings.ConsoleUser)
+                            && string.IsNullOrEmpty(App.Settings.ConsolePassword);
+
+        ConsoleAccountHint.Text = usingDefaults
+            ? "Using the ArkOS default account (ark / ark)."
+            : $"Using {Models.ConsoleCredentials.User}. Reconnect to apply.";
     }
 
     // ----------------------------------------------------------- folders

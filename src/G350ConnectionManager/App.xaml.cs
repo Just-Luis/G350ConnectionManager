@@ -70,6 +70,7 @@ public partial class App : Application
         }
 
         Settings = AppSettings.Load();
+        ConsoleCredentials.Apply(Settings.ConsoleUser, Settings.ConsolePassword);
 
         Theme = new ThemeService(this);
         Theme.Initialize(

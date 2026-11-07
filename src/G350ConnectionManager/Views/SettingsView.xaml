@@ -113,6 +113,31 @@
                 </StackPanel>
             </Border>
 
+            <!-- Console account -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,14,0,0">
+                <StackPanel>
+                    <TextBlock Text="Console account" Style="{StaticResource SectionTitleStyle}"/>
+                    <TextBlock Text="The SSH and SFTP account on the G350. ArkOS ships ark / ark, so these can be left blank."
+                               Style="{StaticResource BodyTextStyle}" Margin="0,4,0,14" TextWrapping="Wrap"/>
+
+                    <TextBlock Text="Username" Style="{StaticResource FieldLabelStyle}"/>
+                    <TextBox x:Name="ConsoleUserBox" Style="{StaticResource TextInputStyle}"
+                             LostFocus="ConsoleAccount_Changed"/>
+
+                    <TextBlock Text="Password" Style="{StaticResource FieldLabelStyle}" Margin="0,12,0,6"/>
+                    <PasswordBox x:Name="ConsolePasswordBox" Height="38"
+                                 Background="{DynamicResource SurfaceBrush}"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                 BorderBrush="{DynamicResource BorderBrush}"
+                                 BorderThickness="1" Padding="10,0" VerticalContentAlignment="Center"
+                                 LostFocus="ConsoleAccount_Changed"/>
+
+                    <TextBlock x:Name="ConsoleAccountHint"
+                               FontSize="12.5" Margin="0,10,0,0" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextMutedBrush}"/>
+                </StackPanel>
+            </Border>
+
         </StackPanel>
     </ScrollViewer>
 </UserControl>

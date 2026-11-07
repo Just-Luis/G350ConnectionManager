@@ -15,6 +15,19 @@ public sealed class AppSettings
     public string AccentHex { get; set; } = ThemeService.DefaultAccent;
     public bool StartCollapsed { get; set; }
     public bool SidebarCollapsed { get; set; }
+
+    /// <summary>
+    /// SSH/SFTP account for the console. Blank means the ArkOS default, so an
+    /// existing settings file needs no migration.
+    /// </summary>
+    public string ConsoleUser { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Password for <see cref="ConsoleUser"/>. Stored in plain text because the
+    /// console services need the original value to answer its <c>sudo</c> prompt
+    /// and because the console's own default is public knowledge.
+    /// </summary>
+    public string ConsolePassword { get; set; } = string.Empty;
     // Both start in the same place. Settings is where they are pointed elsewhere.
     public string ScreenshotFolder { get; set; } = DefaultCaptureFolder();
     public string RecordingFolder { get; set; } = DefaultCaptureFolder();

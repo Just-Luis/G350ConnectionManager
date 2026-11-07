@@ -24,6 +24,11 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      # Whitespace and reachability are not our concern; the tests only cover
+      # the pure logic, so this is a fast gate before the expensive publish.
+      - name: Test
+        run: dotnet test tests/G350ConnectionManager.Tests/G350ConnectionManager.Tests.csproj -c Release
+
       # `publish` performs its own restore for the Release + win-x64 target,
       # which downloads the runtime packs a self-contained build needs. Doing
       # a separate `restore`/`build` first (framework-dependent) leaves the

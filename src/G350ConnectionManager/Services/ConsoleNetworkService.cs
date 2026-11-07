@@ -1,5 +1,7 @@
 using Renci.SshNet;
 
+using G350ConnectionManager.Models;
+
 namespace G350ConnectionManager.Services;
 
 /// <summary>
@@ -22,8 +24,8 @@ namespace G350ConnectionManager.Services;
 /// </summary>
 public sealed class ConsoleNetworkService
 {
-    private const string User = "ark";
-    private const string Password = "ark";
+    private static string User => ConsoleCredentials.User;
+    private static string Password => ConsoleCredentials.Password;
 
     /// <summary>Path the boot TUI actually runs from.</summary>
     private const string ScriptPath = "/opt/system/Tools/USB_Network_Manager.sh";

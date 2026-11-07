@@ -411,11 +411,10 @@ public sealed class IcsService
 
                 // ICS is supposed to renumber the shared adapter into its scope
                 // on its own, and usually does. On some machines it does not and
-                // the adapter is left on a stale address instead - observed here
-                // as 192.168.0.1, which is in no way related to this project.
-                // The console carries 192.168.137.2 and reaches a gateway only at
-                // 192.168.137.1, so sharing appears to succeed while the console
-                // gets nothing.
+                // the adapter is left on a stale address outside both ranges this
+                // project uses. The console carries 192.168.137.2 and reaches a
+                // gateway only at 192.168.137.1, so sharing appears to succeed
+                // while the console gets nothing.
                 //
                 // This runs inside the helper that is already elevated, so the
                 // correction costs no extra elevation prompt.
@@ -1031,9 +1030,9 @@ public sealed class IcsService
     ///
     /// Internet Connection Sharing assigns its private interface an address in
     /// the scope recorded under SharedAccess\Parameters (192.168.137.1 by
-    /// default). On this machine that renumbering does not always happen: after
-    /// enabling, the console adapter has been observed holding 192.168.0.1, an
-    /// address unrelated to anything the project uses. EnableSharing reports
+    /// default). That renumbering does not always happen: after enabling, the
+    /// console adapter has been observed holding an address outside both ranges
+    /// this project uses. EnableSharing reports
     /// success and the panel says sharing is on, while the console - which only
     /// ever carries 192.168.7.2 and 192.168.137.2 - has no gateway and therefore
     /// no internet.

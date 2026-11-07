@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Text;
 using Renci.SshNet;
 
+using G350ConnectionManager.Models;
+
 namespace G350ConnectionManager.Services;
 
 /// <summary>A single captured frame: BGRA pixels, tightly packed per row.</summary>
@@ -34,8 +36,8 @@ public sealed class CapturedFrame
 /// </summary>
 public sealed class ScreenCaptureService : IDisposable
 {
-    private const string User = "ark";
-    private const string Password = "ark";
+    private static string User => ConsoleCredentials.User;
+    private static string Password => ConsoleCredentials.Password;
     private const string RemotePath = "/tmp/g350_grabber.py";
 
     private SshClient? _client;
