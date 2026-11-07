@@ -245,3 +245,50 @@ default via 192.168.7.1 dev usb0
 modules: g_ether, usb_f_rndis, usb_f_eem, u_ether, libcomposite
 /proc/device-tree/usb@ff300000/dr_mode = "peripheral"
 ```
+
+---
+
+## 9. ⚠️ RESOLVED — superseded by G350Wired v1.7.0
+
+**Do not act on sections 1–7 above.** The failure this brief asks about was root-caused and fixed. Kept for the measurement record only.
+
+### The actual cause
+
+The RNDIS gadget reported **no USB serial number**, so Windows keyed the device on the physical path to it:
+
+```
+USB\VID_0525&PID_A4A2\5&1134133F&0&1   port 1
+USB\VID_0525&PID_A4A2\5&1134133F&0&2   port 2
+USB\VID_0525&PID_A4A2\5&1134133F&0&3   port 3
+```
+
+Every port was a **distinct device** with its own name (`Ethernet 2 / 4 / 5`), GUID and empty network configuration. Moving the cable discarded the sharing setup and left a ghost behind.
+
+**Fix** (G350Wired `v1.7.0`): the console's factory-burned SoC serial is passed to the gadget.
+
+```
+USB\VID_0525&PID_A4A2\G350-C3D9B8674F4B94F6
+```
+
+Verified on hardware — unplug, move port, replug: same adapter, same address, sharing resumes immediately, no elevation prompt.
+
+### Corrections to this brief's claims
+
+| Claim in §3 | Reality |
+| :--- | :--- |
+| Missing `ScopeAddress` causes `0x80040201` on every adapter | **Wrong.** With `ScopeAddress` absent and the adapter correctly addressed, both `EnableSharing(1)` and `EnableSharing(0)` succeed — ICS writes the scope itself on first enable. The original observation was taken while the adapter sat on the wrong subnet, so addressing was blamed on the registry value. |
+| Private-side `EnableSharing(1)` is globally broken on this machine | **Wrong.** It was broken *because* the adapter was on the wrong subnet with forwarding disabled. On a correct configuration it succeeds. |
+| The NetBT wedge explains the failures | **Wrong.** After a reboot `NetBT` reports RUNNING and the fault persisted. |
+| Ghost adapters holding `192.168.137.1` causes the conflict | **Unsupported.** Sharing enabled successfully *with* all three ghosts present. |
+
+### Footnote — other gadget loaders
+
+`USB_Network_Manager.sh` is the only script that passes the serial. These still load the module without one:
+
+- `G350Wired/.usb_network/Start_Wired_Services.sh`
+- `G350Wired/.usb_network/c2c_setup.sh`
+- `G350Wired/.usb_network/C2C_Connection_Test.sh`
+- `C2Cconnection NetPlay/.C2C/c2c_setup.sh`
+- `C2Cconnection NetPlay/C2C_Netplay_Prep.sh`
+
+Harmless in practice — `g_ether` is normally already loaded at boot, and the first load wins — but if one of these ever runs first, the console reverts to port-keyed identity and the bug returns. Low priority; worth aligning if those paths are used regularly.
