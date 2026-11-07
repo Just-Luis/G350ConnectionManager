@@ -31,11 +31,22 @@ public partial class App : Application
 
         if (e.Args.Length > 0 && e.Args[0] == IcsService.ToggleArgument)
         {
-            // --ics-toggle <enable|disable> <source> <target> <out.json>
+            // --ics-toggle <enable|disable> <source> <target> <out.json> [targetGuid]
             var outPath = e.Args.Length > 4 ? e.Args[4] : string.Empty;
             var code = string.IsNullOrEmpty(outPath)
                 ? 2
                 : IcsService.RunToggle(e.Args, outPath);
+            Shutdown(code);
+            return;
+        }
+
+        if (e.Args.Length > 0 && e.Args[0] == IcsService.DiagArgument)
+        {
+            // --ics-diag <out.txt>
+            var outPath = e.Args.Length > 1 ? e.Args[1] : string.Empty;
+            var code = string.IsNullOrEmpty(outPath)
+                ? 2
+                : IcsService.RunDiag(outPath);
             Shutdown(code);
             return;
         }
