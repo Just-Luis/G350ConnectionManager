@@ -10,6 +10,13 @@ public partial class App : Application
     public static ThemeService Theme { get; private set; } = null!;
     public static LinkMonitor Link { get; private set; } = null!;
 
+    /// <summary>
+    /// Shared internet-sharing state. Both the Home page and the Network page
+    /// read and write through this instance, so a toggle in one is reflected in
+    /// the other instead of each page keeping a private copy.
+    /// </summary>
+    public static SharingCoordinator Sharing { get; private set; } = null!;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -59,6 +66,7 @@ public partial class App : Application
             Settings.AccentHex);
 
         Link = new LinkMonitor();
+        Sharing = new SharingCoordinator();
 
         if (Settings.StartCollapsed)
             Settings.SidebarCollapsed = true;

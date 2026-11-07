@@ -396,6 +396,18 @@ public sealed class IcsService
                 cfgSrc.EnableSharing(0);   // 0 = public  (internet source)
                 payload.Message = $"Sharing {sourceName} → {resolvedTargetName}.";
 
+                // ICS is supposed to renumber the shared adapter into its scope
+                // on its own, and usually does. On some machines it does not and
+                // the adapter is left on a stale address instead - observed here
+                // as 192.168.0.1, which is in no way related to this project.
+                // The console carries 192.168.137.2 and reaches a gateway only at
+                // 192.168.137.1, so sharing appears to succeed while the console
+                // gets nothing.
+                //
+                // This runs inside the helper that is already elevated, so the
+                // correction costs no extra elevation prompt.
+                var renumbed = EnsureScopeAddress(resolvedTargetName);
+
                 // Wait here, inside the elevated process, for Windows to finish.
                 // Polling from the UI would raise a fresh UAC prompt on every
                 // read — one approval has to cover the whole operation.
@@ -403,6 +415,8 @@ public sealed class IcsService
                 payload.Ok = payload.Applied;
                 if (!payload.Applied)
                     payload.Message += " Windows has not confirmed the change yet.";
+                else if (renumbed is not null)
+                    payload.Message += " " + renumbed;
             }
         }
         catch (Exception ex)
@@ -821,6 +835,80 @@ public sealed class IcsService
             return line is null ? "(none)" : line.Split(':')[1].Trim();
         }
         catch { return "(unknown)"; }
+    }
+
+    /// <summary>
+    /// Puts the shared adapter on the ICS scope address if it is not already there.
+    ///
+    /// Internet Connection Sharing assigns its private interface an address in
+    /// the scope recorded under SharedAccess\Parameters (192.168.137.1 by
+    /// default). On this machine that renumbering does not always happen: after
+    /// enabling, the console adapter has been observed holding 192.168.0.1, an
+    /// address unrelated to anything the project uses. EnableSharing reports
+    /// success and the panel says sharing is on, while the console - which only
+    /// ever carries 192.168.7.2 and 192.168.137.2 - has no gateway and therefore
+    /// no internet.
+    ///
+    /// The scope value is read rather than assumed, so a machine configured with
+    /// a different scope still works. "ScopeAddressBackup" is used when
+    /// "ScopeAddress" is absent, which is the normal state before sharing has
+    /// ever been enabled. Falling back again to 192.168.137.1 matches the value
+    /// the console's own script probes for, so the two agree even if the
+    /// registry is empty.
+    ///
+    /// Returns a sentence to append to the operation result when the address had
+    /// to be changed, or null when nothing needed doing.
+    /// </summary>
+    private static string? EnsureScopeAddress(string adapterName)
+    {
+        var scope = ReadScopeAddress();
+
+        if (string.IsNullOrEmpty(scope))
+        {
+            try
+            {
+                using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                    @"SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters");
+                scope = key?.GetValue("ScopeAddressBackup") as string;
+            }
+            catch { }
+        }
+
+        if (string.IsNullOrEmpty(scope))
+            scope = "192.168.137.1";
+
+        // Give ICS a moment to renumber by itself before overriding it. It is
+        // normal for the address to still be the old one a second after the
+        // call returns, and rewriting it unnecessarily would fight Windows.
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            if (string.Equals(AdapterAddress(adapterName), scope, StringComparison.Ordinal))
+                return null;
+            Thread.Sleep(700);
+        }
+
+        var current = AdapterAddress(adapterName);
+
+        var set = Run("netsh",
+            $"interface ipv4 set address name=\"{adapterName}\" static {scope} 255.255.255.0");
+
+        if (set.ExitCode != 0)
+        {
+            return $"The console adapter could not be moved to {scope} (it is on "
+                 + $"{current}); the console may have no internet until that is fixed by hand.";
+        }
+
+        // Read back rather than trust the exit code: netsh returns 0 for a few
+        // conditions that leave the address unchanged.
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            Thread.Sleep(500);
+            if (string.Equals(AdapterAddress(adapterName), scope, StringComparison.Ordinal))
+                return $"The console adapter was moved to {scope} (it was on {current}).";
+        }
+
+        return $"The console adapter was set to {scope} but still reports "
+             + $"{AdapterAddress(adapterName)}; the console may have no internet.";
     }
 
     private static string Reach(string host)

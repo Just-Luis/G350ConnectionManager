@@ -16,7 +16,7 @@ public partial class NetworkView : UserControl
     private bool _loading = true;
 
     private readonly NetworkConfigService _net = new();
-    private readonly SharingCoordinator _sharing = new();
+    private SharingCoordinator Sharing => App.Sharing;
     private bool _subscribed;
     private bool _busy;
     private bool _icsBusy;
@@ -40,15 +40,52 @@ public partial class NetworkView : UserControl
     {
         if (_subscribed) return;
         App.Link.Updated += OnLinkUpdated;
+        Sharing.Changed += OnSharingChanged;
         _subscribed = true;
         Render(App.Link.Current);
+        RenderSharedState();
         _ = RefreshCurrentConfigAsync();
+    }
+
+    /// <summary>
+    /// Another page changed the sharing state. Adopt it rather than keeping the
+    /// private copy that used to make the two pages disagree.
+    /// </summary>
+    private void OnSharingChanged(object? sender, IcsSnapshot snapshot)
+    {
+        _icsSnapshot = snapshot;
+        RenderIcs(snapshot);
+        UpdateFieldState();
+    }
+
+    /// <summary>
+    /// Paints whatever is already known, so returning to this tab shows real
+    /// state instead of "not checked" and a disabled button.
+    /// </summary>
+    private void RenderSharedState()
+    {
+        if (Sharing.Last is { } known)
+        {
+            _icsSnapshot = known;
+            RenderIcs(known);
+        }
+        else
+        {
+            // Nothing read yet. Offer both directions: the page cannot know
+            // which one applies, and showing only "Turn on" would leave a user
+            // who is already sharing with no way to stop it short of pressing
+            // Check first. Either click reads the state before acting.
+            ShowActions(enableVisible: true, disableVisible: true);
+            IcsEnableButton.IsEnabled = !_icsBusy;
+            IcsDisableButton.IsEnabled = !_icsBusy;
+        }
     }
 
     private void Unsubscribe()
     {
         if (!_subscribed) return;
         App.Link.Updated -= OnLinkUpdated;
+        Sharing.Changed -= OnSharingChanged;
         _subscribed = false;
     }
 
@@ -358,16 +395,25 @@ public partial class NetworkView : UserControl
         var console = s.ConsoleConnection;
         var canShare = console is not null && s.Connections.Count > 1;
 
-        IcsEnableButton.Visibility = s.IsActive || !canShare
-            ? Visibility.Collapsed : Visibility.Visible;
-        IcsDisableButton.Visibility = s.IsActive
-            ? Visibility.Visible : Visibility.Collapsed;
+        // Both controls are always reachable. Hiding the one that does not match
+        // the current state meant that before a read - and after any state the
+        // page had not noticed - there was no button to press at all.
+        ShowActions(
+            enableVisible: !s.IsActive,
+            disableVisible: s.IsActive);
 
         IcsEnableButton.IsEnabled = !_icsBusy && canShare;
-        IcsDisableButton.IsEnabled = !_icsBusy;
+        IcsDisableButton.IsEnabled = !_icsBusy && canShare;
 
-        IcsActions.Visibility = canShare || s.IsActive
-            ? Visibility.Visible : Visibility.Collapsed;
+        IcsActions.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Visibility only; never used to hide both at once.</summary>
+    private void ShowActions(bool enableVisible, bool disableVisible)
+    {
+        IcsEnableButton.Visibility = enableVisible ? Visibility.Visible : Visibility.Collapsed;
+        IcsDisableButton.Visibility = disableVisible ? Visibility.Visible : Visibility.Collapsed;
+        IcsActions.Visibility = Visibility.Visible;
     }
 
     // ------------------------------------------------------------- ics toggle
@@ -397,7 +443,7 @@ public partial class NetworkView : UserControl
                 ? "Turning on sharing… approve the Windows prompt if it appears."
                 : "Turning off sharing… approve the Windows prompt if it appears.";
 
-            var result = await _sharing.SetSharingAsync(enable, _icsSnapshot);
+            var result = await Sharing.SetSharingAsync(enable, _icsSnapshot);
 
             // Use the state the elevated helper captured; re-reading here would
             // need a second elevation prompt for data we already have.
@@ -465,7 +511,7 @@ public partial class NetworkView : UserControl
         // console had moved to a different one.
         IcsRestartBox.Visibility = Visibility.Collapsed;
 
-        var snapshot = await _sharing.ReadAsync();
+        var snapshot = await Sharing.ReadAsync();
         _icsSnapshot = snapshot;
         RenderIcs(snapshot);
 
@@ -479,7 +525,7 @@ public partial class NetworkView : UserControl
     /// </summary>
     private async Task RefreshConsoleAfterAddressChangeAsync()
     {
-        var result = await _sharing.RefreshConsoleAsync();
+        var result = await Sharing.RefreshConsoleAsync();
         await App.Link.RefreshAsync();
         Render(App.Link.Current);
         RenderConsoleRefresh(result);
