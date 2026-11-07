@@ -14,9 +14,9 @@
     <AssemblyTitle>G350 Companion — Battle XP G350 Connection Manager</AssemblyTitle>
     <Company>Just-Luis</Company>
     <Copyright>MIT Licensed</Copyright>
-    <Version>1.1.2</Version>
-    <AssemblyVersion>1.1.2.0</AssemblyVersion>
-    <FileVersion>1.1.2.0</FileVersion>
+    <Version>1.2.0</Version>
+    <AssemblyVersion>1.2.0.0</AssemblyVersion>
+    <FileVersion>1.2.0.0</FileVersion>
 
     <!-- Shown on the exe itself and in the taskbar/title bar. -->
     <ApplicationIcon>app.ico</ApplicationIcon>
