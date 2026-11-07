@@ -16,8 +16,7 @@ public partial class NetworkView : UserControl
     private bool _loading = true;
 
     private readonly NetworkConfigService _net = new();
-    private readonly IcsService _ics = new();
-    private readonly ConsoleNetworkService _console = new();
+    private readonly SharingCoordinator _sharing = new();
     private bool _subscribed;
     private bool _busy;
     private bool _icsBusy;
@@ -224,7 +223,7 @@ public partial class NetworkView : UserControl
         // Any enforced address change invalidates the console's gateway, so the
         // console must re-apply its own networking. Without this, Apply left the
         // console pointing at a gateway that no longer existed.
-        if (ok) await RefreshConsoleNetworkAsync();
+        if (ok) await RefreshConsoleAfterAddressChangeAsync();
     }
 
     private async void Restore_Click(object sender, RoutedEventArgs e)
@@ -252,7 +251,7 @@ public partial class NetworkView : UserControl
 
         // Restoring also moves the PC address, so the console needs the same
         // treatment as Apply.
-        if (ok) await RefreshConsoleNetworkAsync();
+        if (ok) await RefreshConsoleAfterAddressChangeAsync();
     }
 
     private async void Test_Click(object sender, RoutedEventArgs e)
@@ -380,58 +379,16 @@ public partial class NetworkView : UserControl
         => await ToggleSharingAsync(enable: false);
 
     /// <summary>
-    /// Enables or disables sharing, then realigns the console's default route.
-    ///
-    /// The second step is not optional. ICS moves the PC adapter to
-    /// 192.168.137.1, but the console keeps a static default route via
-    /// 192.168.7.1 — a gateway that no longer exists. SSH keeps working (same
-    /// link, both addresses live on usb0) while internet silently fails, which
-    /// is exactly the kind of half-working state that is hard to diagnose.
+    /// Enables or disables sharing and realigns the console's default route. The
+    /// sequence itself lives in <see cref="SharingCoordinator"/> so the Home page
+    /// runs exactly the same code rather than a second copy of it.
     /// </summary>
     private async Task ToggleSharingAsync(bool enable)
     {
         if (_icsBusy) return;
 
-        var snapshot = _icsSnapshot;
-
-        // A stale entry from an unplugged port still matches the gadget
-        // description. Prefer the connection whose GUID is the adapter the link
-        // monitor is actually reading, so "the console" is the adapter the cable
-        // is in rather than a ghost left by a previous port.
-        var liveGuid = App.Link.Current.Adapter?.Id;
-        var console = snapshot?.ConsoleFor(liveGuid) ?? snapshot?.ConsoleConnection;
-        if (snapshot is null)
-        {
-            NetworkHint.Text = "Check internet sharing first.";
-            return;
-        }
-
-        // Turning sharing OFF must not depend on the console being known or even
-        // present. The helper clears every shared connection without looking any
-        // of them up, so an unplugged console no longer aborts the operation and
-        // leaves the WiFi side shared.
-        if (enable && console is null)
-        {
-            NetworkHint.Text = "Check internet sharing first — the console adapter "
-                             + "was not found.";
-            return;
-        }
-
-        // The source is whatever is currently carrying the internet; when
-        // enabling, prefer the connection that already has a gateway.
-        var source = enable
-            ? (snapshot.PublicConnection ?? PickInternetSource(snapshot, console!))
-            : snapshot.PublicConnection;
-
-        if (enable && source is null)
-        {
-            NetworkHint.Text = "No internet connection was found to share. "
-                             + "Connect this PC to Wi-Fi or Ethernet first.";
-            return;
-        }
-
         _icsBusy = true;
-        RenderIcsActions(snapshot);
+        if (_icsSnapshot is not null) RenderIcsActions(_icsSnapshot);
         IcsCheckButton.IsEnabled = false;
 
         try
@@ -440,51 +397,32 @@ public partial class NetworkView : UserControl
                 ? "Turning on sharing… approve the Windows prompt if it appears."
                 : "Turning off sharing… approve the Windows prompt if it appears.";
 
-            // The console adapter's GUID is passed so the helper can still find it
-            // after a USB-port move has renamed it from, say, Ethernet 2 to
-            // Ethernet 4. Its name alone would match nothing.
-            var targetGuid = enable
-                ? (App.Link.Current.Adapter?.Id ?? console?.Guid)
-                : null;
+            var result = await _sharing.SetSharingAsync(enable, _icsSnapshot);
 
-            var (ok, message, after) = await _ics.SetSharingAsync(
-                enable,
-                source?.Name ?? snapshot.PublicConnection?.Name ?? string.Empty,
-                console?.Name ?? string.Empty,
-                targetGuid);
-
-            // Use the state the elevated helper captured. Re-reading here would
-            // need a second elevation prompt for data we already have, and the
-            // stale copy is what left the buttons stuck.
-            if (after is not null)
+            // Use the state the elevated helper captured; re-reading here would
+            // need a second elevation prompt for data we already have.
+            if (result.Snapshot is not null)
             {
-                _icsSnapshot = after;
-                RenderIcs(after);
+                _icsSnapshot = result.Snapshot;
+                RenderIcs(result.Snapshot);
                 UpdateFieldState();
             }
 
-            if (!ok)
+            if (!result.Ok)
             {
-                NetworkHint.Text = message;
+                NetworkHint.Text = result.Message;
                 return;
             }
 
-            NetworkHint.Text = message;
+            NetworkHint.Text = result.Message;
             await App.Link.RefreshAsync();
             Render(App.Link.Current);
-            // The PC address just changed, so the console's gateway is stale.
-            // Always attempt the update: after ICS is turned off the PC leaves
-            // the .137.x subnet, so a probe may find no console address at all
-            // even though the device is perfectly reachable on the other one.
-            // RefreshNetworkAsync tries both addresses itself.
-            await RefreshConsoleNetworkAsync();
+            RenderConsoleRefresh(result);
         }
         finally
         {
             // Always release the buttons, including on an exception or an early
-            // return. They were disabled while _icsBusy was true, and nothing
-            // re-enabled them afterwards — which is why a Refresh used to be
-            // needed before the panel could be used again.
+            // return, so the panel is usable without pressing Refresh first.
             _icsBusy = false;
             IcsCheckButton.IsEnabled = true;
 
@@ -494,33 +432,23 @@ public partial class NetworkView : UserControl
     }
 
     /// <summary>
-    /// Best guess at the adapter carrying the internet. The console adapter is
-    /// never a candidate: making it the source is the classic misconfiguration
-    /// this app exists to prevent.
+    /// Renders what happened when the console was told to re-apply its network
+    /// settings after the PC's address changed.
     /// </summary>
-    private static IcsConnection? PickInternetSource(IcsSnapshot s, IcsConnection console)
+    private void RenderConsoleRefresh(SharingCoordinator.Result result)
     {
-        var candidates = s.Connections
-            .Where(c => c.IsConnected && !c.LooksLikeConsole && c.Name != console.Name)
-            .ToList();
+        IcsRestartBox.Visibility = Visibility.Visible;
 
-        // Prefer adapters whose driver description says Wi-Fi; adapter *names*
-        // are user-renamable ("WiFi" can become anything), descriptions are not.
-        static bool IsWifi(IcsConnection c) =>
-            c.DeviceName.Contains("wi-fi", StringComparison.OrdinalIgnoreCase)
-            || c.DeviceName.Contains("wireless", StringComparison.OrdinalIgnoreCase)
-            || c.DeviceName.Contains("802.11", StringComparison.OrdinalIgnoreCase)
-            || c.Name.Equals("WiFi", StringComparison.OrdinalIgnoreCase)
-            || c.Name.StartsWith("Wi-Fi", StringComparison.OrdinalIgnoreCase);
+        IcsRestartDot.Fill = (Brush)FindResource(
+            result.ConsoleHasInternet ? "StatusOkBrush"
+            : result.ConsoleRefreshed ? "StatusWarnBrush"
+            : "StatusErrorBrush");
 
-        // Virtual switches are almost never the real internet path.
-        static bool IsVirtual(IcsConnection c) =>
-            c.DeviceName.Contains("virtual", StringComparison.OrdinalIgnoreCase)
-            || c.Name.Contains("vEthernet", StringComparison.OrdinalIgnoreCase);
-
-        return candidates.FirstOrDefault(IsWifi)
-               ?? candidates.FirstOrDefault(c => !IsVirtual(c))
-               ?? candidates.FirstOrDefault();
+        IcsRestartText.Text = result.ConsoleHasInternet
+            ? $"Console updated (gateway {result.Gateway}), the console has internet."
+            : result.ConsoleRefreshed
+                ? $"Console updated (gateway {result.Gateway}), the console has no internet."
+                : "The console could not be reached to update its network settings.";
     }
 
     /// <summary>
@@ -537,7 +465,7 @@ public partial class NetworkView : UserControl
         // console had moved to a different one.
         IcsRestartBox.Visibility = Visibility.Collapsed;
 
-        var snapshot = await _ics.ReadAsync();
+        var snapshot = await _sharing.ReadAsync();
         _icsSnapshot = snapshot;
         RenderIcs(snapshot);
 
@@ -545,60 +473,16 @@ public partial class NetworkView : UserControl
         UpdateFieldState();
     }
 
-    // ------------------------------------------------ console network refresh
-
     /// <summary>
-    /// Tells the console to re-apply its network settings after the PC's address
-    /// changed, so the user does not have to walk over and press Start Services.
-    ///
-    /// The console's USB_Network_Manager.sh performs the address + route step
-    /// itself (it adds both .7.2 and .137.2 to usb0 and probes for .137.1). The
-    /// app only triggers it via --refresh-net, which is non-destructive: it does
-    /// not unload g_ether or touch sshd, so it cannot cut the session used to
-    /// ask for it.
+    /// Apply and Restore also move the PC's address, so the console's default
+    /// route becomes stale in exactly the same way it does after a toggle.
     /// </summary>
-    private async Task RefreshConsoleNetworkAsync()
+    private async Task RefreshConsoleAfterAddressChangeAsync()
     {
-        // Re-probe first: the address the app holds may be the one that just
-        // stopped being valid. The service also falls back to the other
-        // candidate address, so a stale value here is not fatal.
+        var result = await _sharing.RefreshConsoleAsync();
         await App.Link.RefreshAsync();
-        var host = App.Link.Current.ConsoleIp ?? string.Empty;
-        IcsRestartText.Text = "Updating the console's network…";
-        IcsRestartBox.Visibility = Visibility.Visible;
-        IcsRestartDot.Fill = (Brush)FindResource("StatusIdleBrush");
-
-        var (ok, gateway, message) = await _console.RefreshNetworkAsync(host);
-
-        // Verify rather than trust: the console reporting a gateway does not
-        // prove packets flow.
-        // Give it a few seconds: the default route was just replaced and the
-        // first ICMP can fail while the kernel settles. A single immediate check
-        // reported "no internet" on a console that was in fact already online.
-        var online = false;
-        if (ok)
-        {
-            // Two tries, ~1s apart. HasInternetAsync already walks both console
-            // addresses, so a short retry is enough; a long one just leaves the
-            // panel saying "Updating..." after the work is actually done.
-            online = await _console.HasInternetAsync(host);
-            if (!online)
-            {
-                await Task.Delay(1000);
-                online = await _console.HasInternetAsync(host);
-            }
-        }
-
-        IcsRestartDot.Fill = (Brush)FindResource(
-            online ? "StatusOkBrush"
-            : ok ? "StatusWarnBrush"
-            : "StatusErrorBrush");
-
-        IcsRestartText.Text = online
-            ? $"Console updated (gateway {gateway}), the console has internet."
-            : ok
-                ? $"Console updated (gateway {gateway}), the console has no internet."
-                : message;
+        Render(App.Link.Current);
+        RenderConsoleRefresh(result);
     }
 
     /// <summary>
