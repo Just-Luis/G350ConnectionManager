@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using G350ConnectionManager.Models;
@@ -154,8 +153,6 @@ public sealed class LinkProbe
             : new ProbeResult(ProbeState.Warning,
                 "This PC has no internet — check Wi-Fi or Ethernet"));
 
-        var gateway = adapter?.Gateway;
-
         return new LinkSnapshot
         {
             ConsoleIp = consoleIp,
@@ -163,8 +160,6 @@ public sealed class LinkProbe
             PingMs = pingMs,
             SshOk = sshOk,
             Adapter = adapter,
-            LinkUp = linkUp,
-            GatewayAddress = gateway,
             InternetSharingActive = adapter?.Ipv4?.StartsWith("192.168.137.") == true,
             InternetReachable = internetOk,
             Stages = stages,

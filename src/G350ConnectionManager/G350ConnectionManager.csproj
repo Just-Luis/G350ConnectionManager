@@ -14,15 +14,25 @@
     <AssemblyTitle>G350 Companion — Battle XP G350 Connection Manager</AssemblyTitle>
     <Company>Just-Luis</Company>
     <Copyright>MIT Licensed</Copyright>
-    <Version>1.0.4</Version>
-    <AssemblyVersion>1.0.4.0</AssemblyVersion>
-    <FileVersion>1.0.4.0</FileVersion>
+    <Version>1.0.5</Version>
+    <AssemblyVersion>1.0.5.0</AssemblyVersion>
+    <FileVersion>1.0.5.0</FileVersion>
 
     <!-- Shown on the exe itself and in the taskbar/title bar. -->
     <ApplicationIcon>app.ico</ApplicationIcon>
 
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+
+    <!--
+      Documentation generation is what lets the compiler validate the XML in
+      /// comments and report unused using directives (IDE0005) on build. Without
+      it a malformed doc comment or a stale using sits in the tree indefinitely.
+      CS1591 (missing doc on a public member) is suppressed: this is an
+      application, not a library, and most of its public surface is XAML-driven.
+    -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <!--

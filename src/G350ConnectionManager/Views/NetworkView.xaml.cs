@@ -23,9 +23,6 @@ public partial class NetworkView : UserControl
     private bool _icsBusy;
     private IcsSnapshot? _icsSnapshot;
 
-    /// <summary>Guards against the 4 s tick overlapping an auto-refresh in progress.</summary>
-    private bool _icsAutoRefreshInFlight;
-
     public NetworkView()
     {
         InitializeComponent();
@@ -56,75 +53,7 @@ public partial class NetworkView : UserControl
         _subscribed = false;
     }
 
-    private void OnLinkUpdated(object? sender, LinkSnapshot snapshot)
-    {
-        Render(snapshot);
-        _ = MaybeRefreshIcsForNewAdapterAsync(snapshot);
-    }
-
-    /// <summary>
-    /// Re-reads internet sharing when the console has reappeared on a different
-    /// adapter. Equivalent to the user pressing Refresh — including the elevation
-    /// prompt — but triggered by the cable moving, and only once it is actually
-    /// worth asking for.
-    ///
-    /// Windows binds a network adapter to the physical USB port, so moving the
-    /// cable gives the console a new name (Ethernet 2 / 4 / 5) and a fresh,
-    /// unshared configuration that the current snapshot no longer describes.
-    ///
-    /// Nothing happens unless all of these hold:
-    ///
-    ///   * internet sharing has been read at least once this session, because an
-    ///     automatic elevation prompt the user never asked for is unacceptable;
-    ///   * Windows reports a console adapter, because the name is only meaningful
-    ///     once the USB gadget has enumerated;
-    ///   * the current snapshot describes a console connection under a different
-    ///     name, because otherwise every 4 s tick would schedule a UAC prompt;
-    ///   * nothing else is reading or writing sharing, because a toggle or a
-    ///     Check press is already doing more than this would;
-    ///   * the window is on screen, because an elevation prompt behind another
-    ///     window looks like nothing happened.
-    ///
-    /// Re-running is prevented by the snapshot, not by a flag: once the read
-    /// succeeds the snapshot names the new adapter and the names match. A read
-    /// that could not be completed yields a snapshot with no connections at all,
-    /// so the third guard stops it too — a declined prompt is not retried on
-    /// every tick.
-    /// </summary>
-    private async Task MaybeRefreshIcsForNewAdapterAsync(LinkSnapshot snapshot)
-    {
-        if (_icsSnapshot is null) return;
-        if (_icsBusy || _icsAutoRefreshInFlight) return;
-        if (!IsVisible) return;
-
-        var adapter = snapshot.Adapter;
-        if (adapter is null || string.IsNullOrWhiteSpace(adapter.Name)) return;
-
-        var known = _icsSnapshot.ConsoleConnection?.Name;
-        if (string.IsNullOrEmpty(known)) return;
-
-        if (string.Equals(adapter.Name, known, StringComparison.OrdinalIgnoreCase)) return;
-
-        _icsAutoRefreshInFlight = true;
-        try
-        {
-            // Read is elevated, so say why the prompt is about to appear.
-            NetworkHint.Text =
-                $"The console appeared as {adapter.Name}. Re-reading internet sharing… ";
-
-            await RefreshIcsAsync(quiet: true);
-        }
-        catch (Exception ex)
-        {
-            // A failed read must never take the page down with it; the user can
-            // still press Refresh.
-            NetworkHint.Text = $"Could not re-read internet sharing: {ex.Message}";
-        }
-        finally
-        {
-            _icsAutoRefreshInFlight = false;
-        }
-    }
+    private void OnLinkUpdated(object? sender, LinkSnapshot snapshot) => Render(snapshot);
 
     // ------------------------------------------------------------------ render
 
@@ -145,7 +74,11 @@ public partial class NetworkView : UserControl
             ? "Plug in the USB cable and start services on the console."
             : adapter.Ipv4 is null
                 ? "No IPv4 address assigned yet."
-                : $"{adapter.Ipv4}/{PrefixOf(adapter)}" +
+                // AdapterInfo carries the address without its prefix; the real
+                // prefix comes from netsh in RefreshCurrentConfigAsync, which
+                // overwrites this line once it has run. The console link is
+                // always /24, so that is the honest interim value.
+                : $"{adapter.Ipv4}/24" +
                   (string.IsNullOrEmpty(adapter.Gateway) ? "" : $" · gateway {adapter.Gateway}");
 
         // Applying only makes sense once the adapter is actually present.
@@ -155,13 +88,6 @@ public partial class NetworkView : UserControl
 
         UpdateDiffPreview();
         UpdateActivityLog();
-    }
-
-    private static string PrefixOf(AdapterInfo a)
-    {
-        // AdapterInfo carries a dotted IPv4 string; the prefix is read live from netsh
-        // when needed, so show /24 as the console-link default here.
-        return "24";
     }
 
     private void UpdateActivityLog()
@@ -354,18 +280,17 @@ public partial class NetworkView : UserControl
         _icsBusy = true;
         IcsCheckButton.IsEnabled = false;
         IcsCheckButton.Content = "Checking…";
-        IcsStatusText.Text = "Checking internet sharing…";
-        IcsDot.Fill = (Brush)FindResource("StatusIdleBrush");
-
-        var snapshot = await _ics.ReadAsync();
-        _icsSnapshot = snapshot;
-
-        _icsBusy = false;
-        IcsCheckButton.IsEnabled = true;
-        IcsCheckButton.Content = "Refresh";
-
-        RenderIcs(snapshot);
-        UpdateActivityLog();
+        try
+        {
+            await RefreshIcsAsync();
+            UpdateActivityLog();
+        }
+        finally
+        {
+            _icsBusy = false;
+            IcsCheckButton.IsEnabled = true;
+            IcsCheckButton.Content = "Refresh";
+        }
     }
 
     private void RenderIcs(IcsSnapshot s)
@@ -469,12 +394,12 @@ public partial class NetworkView : UserControl
 
         var snapshot = _icsSnapshot;
 
-        // A port move leaves the previous port's adapter behind as a disconnected
-        // ghost that still matches the gadget description. Prefer the live adapter
-        // whose MAC matches the one the link monitor sees, so "the console" is the
-        // adapter the cable is actually in.
-        var liveMac = App.Link.Current.Adapter?.Id;
-        var console = snapshot?.ConsoleFor(liveMac) ?? snapshot?.ConsoleConnection;
+        // A stale entry from an unplugged port still matches the gadget
+        // description. Prefer the connection whose GUID is the adapter the link
+        // monitor is actually reading, so "the console" is the adapter the cable
+        // is in rather than a ghost left by a previous port.
+        var liveGuid = App.Link.Current.Adapter?.Id;
+        var console = snapshot?.ConsoleFor(liveGuid) ?? snapshot?.ConsoleConnection;
         if (snapshot is null)
         {
             NetworkHint.Text = "Check internet sharing first.";
@@ -599,27 +524,18 @@ public partial class NetworkView : UserControl
     }
 
     /// <summary>
-    /// Re-reads internet sharing, exactly as pressing Refresh does — a snapshot
-    /// of the whole connection list, elevated.
-    ///
-    /// Used by the adapter-change path and by the Check button. <paramref name="quiet"/>
-    /// leaves the status line untouched so the caller can explain what triggered
-    /// the read, and clears the console-update line left by a previous toggle.
+    /// Reads internet sharing and repaints the panel. The read is elevated, so
+    /// this is only ever called from a button the user pressed.
     /// </summary>
-    private async Task RefreshIcsAsync(bool quiet = false)
+    private async Task RefreshIcsAsync()
     {
-        if (!quiet)
-        {
-            IcsStatusText.Text = "Checking internet sharing…";
-            IcsDot.Fill = (Brush)FindResource("StatusIdleBrush");
-        }
-        else
-        {
-            // The console-update line belongs to the toggle that produced it.
-            // Keeping it after a fresh read showed stale text ("gateway
-            // 192.168.7.1") long after the gateway had become 192.168.137.1.
-            IcsRestartBox.Visibility = Visibility.Collapsed;
-        }
+        IcsStatusText.Text = "Checking internet sharing…";
+        IcsDot.Fill = (Brush)FindResource("StatusIdleBrush");
+
+        // The console-update line belongs to the toggle that produced it. A fresh
+        // read supersedes it; keeping it showed a stale gateway long after the
+        // console had moved to a different one.
+        IcsRestartBox.Visibility = Visibility.Collapsed;
 
         var snapshot = await _ics.ReadAsync();
         _icsSnapshot = snapshot;

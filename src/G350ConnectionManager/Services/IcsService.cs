@@ -26,9 +26,6 @@ public sealed class IcsService
 
     private const string ServiceName = "SharedAccess";
 
-    /// <summary>Last error / progress text for the caller's log.</summary>
-    public string LastMessage { get; private set; } = string.Empty;
-
     /// <summary>
     /// Reads ICS state by running the elevated probe.
     /// Returns a failed snapshot (never throws) when elevation is declined.
@@ -68,16 +65,11 @@ public sealed class IcsService
                 return IcsSnapshot.Failed("The elevated reader returned unreadable data.");
 
             if (payload.Error is { Length: > 0 })
-            {
-                LastMessage = payload.Error;
                 return IcsSnapshot.Failed(payload.Error);
-            }
 
-            LastMessage = $"Read {payload.Connections.Count} connections.";
             return new IcsSnapshot(
                 Ok: true,
-                Message: LastMessage,
-                SharingInstalled: payload.SharingInstalled,
+                Message: $"Read {payload.Connections.Count} connections.",
                 ServiceRunning: payload.ServiceRunning,
                 ScopeAddress: payload.ScopeAddress,
                 Connections: payload.Connections);
@@ -89,12 +81,10 @@ public sealed class IcsService
                 ? "Administrator approval is required to read internet sharing. "
                   + "Nothing was changed."
                 : ex.Message;
-            LastMessage = msg;
             return IcsSnapshot.Failed(msg);
         }
         catch (Exception ex)
         {
-            LastMessage = ex.Message;
             return IcsSnapshot.Failed(ex.Message);
         }
         finally
@@ -129,7 +119,6 @@ public sealed class IcsService
                 // interfaces fail here with DISP_E_MEMBERNOTFOUND because these
                 // objects are dual interfaces and the vtable slots do not line up.
                 dynamic mgr = Activator.CreateInstance(type)!;
-                payload.SharingInstalled = (bool)mgr.SharingInstalled;
 
                 foreach (dynamic conn in mgr.EnumEveryConnection)
                 {
@@ -143,8 +132,7 @@ public sealed class IcsService
                             Name = (string)props.Name,
                             DeviceName = (string)props.DeviceName,
                             Guid = (string)props.Guid,
-                            IsConnected = (int)props.Status == 2,
-                            Mac = MacOf((string)props.Name)
+                            IsConnected = (int)props.Status == 2
                         };
                     }
                     catch (Exception ex)
@@ -248,7 +236,6 @@ public sealed class IcsService
                 : new IcsSnapshot(
                     Ok: true,
                     Message: payload.Message,
-                    SharingInstalled: payload.Snapshot.SharingInstalled,
                     ServiceRunning: payload.Snapshot.ServiceRunning,
                     ScopeAddress: payload.Snapshot.ScopeAddress,
                     Connections: payload.Snapshot.Connections);
@@ -446,7 +433,6 @@ public sealed class IcsService
             if (type is null) return payload;
 
             dynamic mgr = Activator.CreateInstance(type)!;
-            payload.SharingInstalled = (bool)mgr.SharingInstalled;
 
             foreach (dynamic conn in mgr.EnumEveryConnection)
             {
@@ -459,8 +445,7 @@ public sealed class IcsService
                         Name = (string)props.Name,
                         DeviceName = (string)props.DeviceName,
                         Guid = (string)props.Guid,
-                        IsConnected = (int)props.Status == 2,
-                        Mac = MacOf((string)props.Name)
+                        IsConnected = (int)props.Status == 2
                     };
 
                     dynamic cfg = mgr.INetSharingConfigurationForINetConnection(conn);
@@ -822,45 +807,6 @@ public sealed class IcsService
         catch { return "unknown"; }
     }
 
-    /// <summary>
-    /// MAC address of an adapter, or empty when it cannot be read.
-    ///
-    /// The console's USB gadget reports the same MAC on every USB port, which is
-    /// what makes it usable as the identity of the *device* rather than of the
-    /// port. Read from the registry because the adapter can be enumerated before
-    /// its IP configuration exists.
-    /// </summary>
-    private static string MacOf(string adapterName)
-    {
-        try
-        {
-            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
-                @"SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}");
-            if (key is null) return string.Empty;
-
-            foreach (var sub in key.GetSubKeyNames())
-            {
-                if (!sub.StartsWith("0")) continue;
-
-                using var inst = key.OpenSubKey(sub);
-                if (inst?.GetValue("NetCfgInstanceId") is not string guid) continue;
-                if (inst.GetValue("DriverDesc") is not string desc) continue;
-
-                // The registry does not store the connection name, so match the
-                // description loosely and let the caller fall back to the name.
-                if (!adapterName.Contains("NDIS", StringComparison.OrdinalIgnoreCase)
-                    && !desc.Contains("NDIS", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                return inst.GetValue("NetworkAddress") as string
-                    ?? inst.GetValue("PermanentAddress") as string
-                    ?? string.Empty;
-            }
-        }
-        catch { }
-        return string.Empty;
-    }
-
     private static string AdapterAddress(string adapterName)
     {
         try
@@ -994,7 +940,6 @@ public sealed class IcsService
 
     internal sealed class ProbePayload
     {
-        public bool SharingInstalled { get; set; }
         public bool ServiceRunning { get; set; }
         public string? ScopeAddress { get; set; }
         public string? Error { get; set; }

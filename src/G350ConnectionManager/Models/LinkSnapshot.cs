@@ -1,6 +1,3 @@
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
-
 namespace G350ConnectionManager.Models;
 
 /// <summary>Result of one diagnostic probe stage.</summary>
@@ -51,10 +48,17 @@ public sealed class LinkSnapshot
     // PC side
     public AdapterInfo? Adapter { get; init; }
     public bool AdapterFound => Adapter is not null;
-    public bool LinkUp { get; init; }
 
     // Sharing
-    public string? GatewayAddress { get; init; }
+    /// <summary>
+    /// True when the console adapter holds an address in the ICS scope.
+    ///
+    /// This is a guess made from the adapter's address, not a reading of ICS -
+    /// reading ICS needs elevation. AdapterInfo carries only the first IPv4
+    /// address, so when both 192.168.7.1 and 192.168.137.1 are present the
+    /// answer depends on enumeration order. The Network page reports the real
+    /// state from an actual ICS read; this only feeds the Home summary.
+    /// </summary>
     public bool InternetSharingActive { get; init; }
     public bool InternetReachable { get; init; }
 

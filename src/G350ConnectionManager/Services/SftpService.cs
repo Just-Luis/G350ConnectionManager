@@ -39,7 +39,7 @@ public sealed record FileEntry(
 ///
 /// Every operation creates and disposes its own session. A long-lived connection
 /// would be faster, but it also breaks the moment the console's address changes
-/// — which happens on every internet-sharing toggle (192.168.7.2 <-> .137.2).
+/// — which happens on every internet-sharing toggle (192.168.7.2 vs .137.2).
 /// Transfers are the only long-lived activity, and those hold their own session
 /// for their duration.
 /// </summary>
@@ -50,12 +50,6 @@ public sealed class SftpService
 
     /// <summary>Where the console's user data lives.</summary>
     public const string RomsRoot = "/roms";
-
-    /// <summary>Directories worth offering as a starting point.</summary>
-    public static readonly string[] Landmarks =
-    {
-        "/roms", "/roms/tools", "/roms/ports", "/roms/screenshots", "/home/ark"
-    };
 
     public Task<List<FileEntry>> ListAsync(string host, string path)
         => Task.Run(() => List(host, path));
@@ -142,20 +136,6 @@ public sealed class SftpService
             using var sftp = Connect(host);
             sftp.CreateDirectory(parent.TrimEnd('/') + "/" + name);
         });
-
-    /// <summary>True when the session can be opened and the path listed.</summary>
-    public static bool TestConnection(string host)
-    {
-        try
-        {
-            using var sftp = Connect(host);
-            return sftp.Exists(RomsRoot);
-        }
-        catch
-        {
-            return false;
-        }
-    }
 
     private static SftpClient Connect(string host)
     {

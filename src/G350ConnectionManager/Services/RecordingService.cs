@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.IO;
-using Renci.SshNet;
 
 namespace G350ConnectionManager.Services;
 

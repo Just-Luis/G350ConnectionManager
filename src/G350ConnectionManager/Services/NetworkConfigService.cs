@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using System.IO;
-using System.Net;
 using System.Text.Json;
-using G350ConnectionManager.Models;
 
 namespace G350ConnectionManager.Services;
 

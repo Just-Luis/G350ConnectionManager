@@ -18,9 +18,6 @@ namespace G350ConnectionManager.Services;
 /// for it because it never unloads the g_ether gadget, so usb0 keeps its
 /// addresses throughout -- at worst a running command is interrupted.
 ///
-/// A tier below it, <c>--refresh-net</c> does only the addressing and route, with
-/// no service restarts.
-///
 /// See docs/CONSOLE_CONTROL_INTERFACE.md in the G350Wired repository.
 /// </summary>
 public sealed class ConsoleNetworkService
@@ -31,10 +28,6 @@ public sealed class ConsoleNetworkService
     /// <summary>Path the boot TUI actually runs from.</summary>
     private const string ScriptPath = "/opt/system/Tools/USB_Network_Manager.sh";
 
-    /// <summary>
-    /// Runs <c>--start-services</c> on the console. Returns (ok, gateway, message);
-    /// gateway is null when the console did not report one.
-    /// </summary>
     /// <summary>Both addresses the console can answer on.</summary>
     private static readonly string[] CandidateHosts = { "192.168.137.2", "192.168.7.2" };
 
@@ -85,12 +78,12 @@ public sealed class ConsoleNetworkService
     }
 
     /// <summary>
-    /// Runs <c>--start-services</c>, trying every address the console may be on.
+    /// Runs <c>--start-services</c> on the console. Returns (ok, gateway, message);
+    /// gateway is null when the console did not report one.
     ///
-    /// A single address is not enough: the whole point of the refresh is that the
-    /// PC's subnet just changed, so the address that worked a moment ago is often
-    /// the wrong one now. With ICS off the PC leaves 192.168.137.x entirely and
-    /// .137.2 stops answering.
+    /// <paramref name="host"/> is a hint, not a requirement: the port move that
+    /// prompted the refresh usually invalidated it, so every candidate address is
+    /// tried.
     /// </summary>
     public Task<(bool Ok, string? Gateway, string Message)> RefreshNetworkAsync(string host)
         => Task.Run(() => RefreshNetwork(host));
