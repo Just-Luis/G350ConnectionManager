@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using G350ConnectionManager.Models;
@@ -14,6 +15,13 @@ namespace G350ConnectionManager.Services;
 ///   3. Console answers ICMP on either candidate IP
 ///   4. TCP/22 listening  (= console-side services running)
 ///   5. Internet reachable (only meaningful once sharing is on)
+///
+/// Stage 1 needs a second opinion from the operating system. A network adapter
+/// that Windows has administratively disabled does not appear in
+/// <see cref="NetworkInterface.GetAllNetworkInterfaces"/> at all - verified on
+/// hardware - so enumerating through .NET alone reports "no adapter", which is
+/// indistinguishable from "nothing is plugged in". The real answer is usually
+/// that the adapter exists and is disabled, so that case is detected separately.
 /// </summary>
 public sealed class LinkProbe
 {
@@ -21,9 +29,9 @@ public sealed class LinkProbe
     /// The console answers on 192.168.137.2 when Windows ICS is enabled, and
     /// 192.168.7.2 when it is not. Both are tried, matching the existing .bat tools.
     /// </summary>
-    public static readonly string[] ConsoleCandidates = { "192.168.137.2", "192.168.7.2" };
+    private static readonly string[] ConsoleCandidates = { "192.168.137.2", "192.168.7.2" };
 
-    public const int SshPort = 22;
+    private const int SshPort = 22;
 
     private static readonly TimeSpan PingTimeout = TimeSpan.FromMilliseconds(900);
     private static readonly TimeSpan TcpTimeout = TimeSpan.FromMilliseconds(900);
@@ -31,15 +39,13 @@ public sealed class LinkProbe
     // ---------------------------------------------------------------- probes
 
     /// <summary>ICMP echo. Returns the round-trip time in ms, or null on failure.</summary>
-    public static async Task<int?> PingAsync(string host, int timeoutMs = 900, CancellationToken ct = default)
+    private static async Task<int?> PingAsync(string host, int timeoutMs = 900, CancellationToken ct = default)
     {
         try
         {
             using var ping = new Ping();
             var reply = await ping.SendPingAsync(host, timeoutMs).WaitAsync(ct);
-            if (reply.Status == IPStatus.Success)
-                return (int)reply.RoundtripTime;
-            return null;
+            return reply.Status == IPStatus.Success ? (int)reply.RoundtripTime : null;
         }
         catch
         {
@@ -48,7 +54,7 @@ public sealed class LinkProbe
     }
 
     /// <summary>True when something accepts a TCP connection on host:port.</summary>
-    public static async Task<bool> TcpOpenAsync(string host, int port, int timeoutMs = 900, CancellationToken ct = default)
+    private static async Task<bool> TcpOpenAsync(string host, int port, int timeoutMs = 900, CancellationToken ct = default)
     {
         try
         {
@@ -60,6 +66,50 @@ public sealed class LinkProbe
         }
         catch
         {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// True when Windows knows about a console adapter that is administratively
+    /// disabled.
+    ///
+    /// Such an adapter is invisible to <see cref="NetworkInterface"/>, so without
+    /// this check the app reports "no USB adapter found" and sends the user off to
+    /// check the cable, the console's power and its USB mode - none of which is
+    /// the problem.
+    ///
+    /// Detection only. Enabling a network adapter changes machine-wide state, so
+    /// it stays a decision the user makes, not something a status probe does.
+    /// </summary>
+    private static bool HasDisabledConsoleAdapter()
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "powershell",
+                Arguments = "-NoProfile -NonInteractive -Command "
+                          + "\"@(Get-NetAdapter -ErrorAction SilentlyContinue | "
+                          + "Where-Object { $_.InterfaceDescription -like '*Remote NDIS*' "
+                          + "-and $_.Status -eq 'Disabled' }).Count\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var proc = Process.Start(psi);
+            if (proc is null) return false;
+
+            var text = proc.StandardOutput.ReadToEnd().Trim();
+            proc.WaitForExit(4000);
+
+            return int.TryParse(text, out var count) && count > 0;
+        }
+        catch
+        {
+            // A failed probe must not change the diagnostic's verdict.
             return false;
         }
     }
@@ -77,15 +127,21 @@ public sealed class LinkProbe
         var adapter = AdapterEnumerator.FindConsoleAdapter(adapters);
 
         // --- Stage 1: USB adapter present -------------------------------------
-        if (adapter is null)
-        {
-            stages.Add(new ProbeResult(ProbeState.Failed,
-                "No USB Ethernet adapter found — is the console connected and in PC mode?"));
-        }
-        else
+        if (adapter is not null)
         {
             stages.Add(new ProbeResult(ProbeState.Ok,
                 $"{adapter.DisplayName} ({adapter.Name})"));
+        }
+        else if (HasDisabledConsoleAdapter())
+        {
+            stages.Add(new ProbeResult(ProbeState.Failed,
+                "The console's USB adapter is disabled in Windows. Enable it in "
+                + "Network Connections (ncpa.cpl) or Device Manager."));
+        }
+        else
+        {
+            stages.Add(new ProbeResult(ProbeState.Failed,
+                "No USB Ethernet adapter found — is the console connected and in PC mode?"));
         }
 
         // --- Stage 2: link up -------------------------------------------------
