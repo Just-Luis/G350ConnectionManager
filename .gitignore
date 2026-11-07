@@ -25,22 +25,34 @@ $RECYCLE.BIN/
 # ==========================================================
 # Temporary captures & scratch files
 # ==========================================================
+# A blanket media rule keeps stray screenshots out of the repo. The README
+# images are then re-included one by one, on purpose: a wildcard here would
+# publish any image dropped into docs/screenshots, including one that happens to
+# show a local file path in the UI.
 *.png
 *.jpg
 *.log
 *.tmp
 *.avi
 *.mp4
-!docs/screenshots/*.png
+!docs/screenshots/home-light.png
+!docs/screenshots/home-dark.png
+!docs/screenshots/screen-light.png
+!docs/screenshots/files.png
+!docs/screenshots/console-dark.png
+!docs/screenshots/tutorial-home-connected.png
+!docs/screenshots/tutorial-network-address.png
+!docs/screenshots/tutorial-sharing-panel.png
+!docs/screenshots/tutorial-screen-live.png
+!docs/screenshots/tutorial-files-roms.png
+!docs/screenshots/tutorial-console.png
 
 # ==========================================================
 # App assets that must be committed
 # ==========================================================
-# The blanket *.png rule above is there to keep stray screenshots out of the
-# repo, but it also swallowed the brand marks. They are declared as <Resource>
-# in G350ConnectionManager.csproj, so leaving them out makes every clone fail
-# to build with "error BG1002: File 'brand.png' cannot be found" - which is
-# exactly what broke CI from v1.0.1 onwards.
+# brand.png, brand_light.png and app.ico are declared as <Resource> in
+# G350ConnectionManager.csproj. They must stay tracked, or every clone fails to
+# build with "error BG1002: File 'brand.png' cannot be found".
 !src/G350ConnectionManager/*.png
 
 # ==========================================================
@@ -49,3 +61,9 @@ $RECYCLE.BIN/
 .vscode/
 .idea/
 *.swp
+
+# ==========================================================
+# Test project output
+# ==========================================================
+tests/**/bin/
+tests/**/obj/
