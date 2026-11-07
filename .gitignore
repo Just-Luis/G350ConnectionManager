@@ -34,6 +34,16 @@ $RECYCLE.BIN/
 !docs/screenshots/*.png
 
 # ==========================================================
+# App assets that must be committed
+# ==========================================================
+# The blanket *.png rule above is there to keep stray screenshots out of the
+# repo, but it also swallowed the brand marks. They are declared as <Resource>
+# in G350ConnectionManager.csproj, so leaving them out makes every clone fail
+# to build with "error BG1002: File 'brand.png' cannot be found" - which is
+# exactly what broke CI from v1.0.1 onwards.
+!src/G350ConnectionManager/*.png
+
+# ==========================================================
 # IDE files
 # ==========================================================
 .vscode/
