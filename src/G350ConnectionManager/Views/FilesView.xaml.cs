@@ -39,7 +39,7 @@ public partial class FilesView : UserControl
 
         // Populate both panes on arrival: an empty console pane with no
         // explanation looks broken.
-        _ = LoadLocalAsync();
+        LoadLocalAsync();
         _ = LoadRemoteAsync();
     }
 
@@ -70,7 +70,7 @@ public partial class FilesView : UserControl
 
     // ----------------------------------------------------------------- local
 
-    private async Task LoadLocalAsync()
+    private void LoadLocalAsync()
     {
         try
         {
@@ -104,7 +104,7 @@ public partial class FilesView : UserControl
         if (!entry.IsDirectory) return;
 
         _localPath = entry.FullPath;
-        _ = LoadLocalAsync();
+        LoadLocalAsync();
     }
 
     private void LocalUp_Click(object sender, RoutedEventArgs e)
@@ -113,7 +113,7 @@ public partial class FilesView : UserControl
         if (parent is null) return;
 
         _localPath = parent.FullName;
-        _ = LoadLocalAsync();
+        LoadLocalAsync();
     }
 
     private void LocalNewFolder_Click(object sender, RoutedEventArgs e)
@@ -135,7 +135,7 @@ public partial class FilesView : UserControl
             else File.Delete(entry.FullPath);
 
             ActivityText.Text = $"Deleted {entry.Name}.";
-            _ = LoadLocalAsync();
+            LoadLocalAsync();
         }
         catch (Exception ex)
         {
@@ -303,7 +303,7 @@ public partial class FilesView : UserControl
         {
             _busy = false;
             Render(App.Link.Current);
-            await LoadLocalAsync();
+            LoadLocalAsync();
         }
     }
 
@@ -331,7 +331,7 @@ public partial class FilesView : UserControl
             else
             {
                 Directory.CreateDirectory(Path.Combine(parent, name.Trim()));
-                _ = LoadLocalAsync();
+                LoadLocalAsync();
             }
         }
         catch (Exception ex)
@@ -405,7 +405,7 @@ public partial class FilesView : UserControl
 
     private async void Refresh_Click(object sender, RoutedEventArgs e)
     {
-        await LoadLocalAsync();
+        LoadLocalAsync();
         await LoadRemoteAsync();
     }
 }

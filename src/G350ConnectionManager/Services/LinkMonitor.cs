@@ -38,9 +38,6 @@ public sealed class LinkMonitor : IDisposable
     /// <summary>Raised on the UI thread whenever a new snapshot is available.</summary>
     public event EventHandler<LinkSnapshot>? Updated;
 
-    /// <summary>True while a sweep is running (used to show a subtle busy hint).</summary>
-    public bool IsProbing => _probing;
-
     public void Start()
     {
         _timer.Start();

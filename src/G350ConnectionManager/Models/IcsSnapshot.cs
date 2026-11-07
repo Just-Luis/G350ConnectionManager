@@ -9,27 +9,16 @@ namespace G350ConnectionManager.Models;
 /// <param name="IsConnected">True when Windows reports the connection up.</param>
 /// <param name="SharingEnabled">True when this connection is currently shared.</param>
 /// <param name="SharingType">0 = public (source), 1 = private (destination).</param>
-/// <param name="Mac">
-/// MAC address of the adapter. The console's USB gadget keeps the same MAC
-/// across USB ports, so this identifies the device itself; the adapter *name*
-/// does not, because it belongs to the port.
-/// </param>
 public sealed record IcsConnection(
     string Name,
     string DeviceName,
     string Guid,
     bool IsConnected,
     bool SharingEnabled,
-    int SharingType,
-    string Mac = "")
+    int SharingType)
 {
     public bool IsPublic => SharingEnabled && SharingType == 0;
     public bool IsPrivate => SharingEnabled && SharingType == 1;
-
-    /// <summary>Short state word for the UI.</summary>
-    public string StateText => !SharingEnabled
-        ? "not shared"
-        : SharingType == 0 ? "shared · source" : "shared · destination";
 
     public bool LooksLikeConsole => Services.AdapterEnumerator
         .LooksLikeGadget(Name, DeviceName);
@@ -42,13 +31,12 @@ public sealed record IcsConnection(
 public sealed record IcsSnapshot(
     bool Ok,
     string Message,
-    bool SharingInstalled,
     bool ServiceRunning,
     string? ScopeAddress,
     IReadOnlyList<IcsConnection> Connections)
 {
     public static IcsSnapshot Failed(string message) =>
-        new(false, message, false, false, null, Array.Empty<IcsConnection>());
+        new(false, message, false, null, Array.Empty<IcsConnection>());
 
     public IcsConnection? PublicConnection =>
         Connections.FirstOrDefault(c => c.IsPublic);
@@ -60,18 +48,24 @@ public sealed record IcsSnapshot(
         Connections.FirstOrDefault(c => c.LooksLikeConsole);
 
     /// <summary>
-    /// The console adapter carrying this exact console's MAC, when one is known.
+    /// The console connection carrying this adapter GUID, when the snapshot has one.
     ///
-    /// A port move leaves more than one gadget adapter behind - Windows keeps
-    /// the old, disconnected one - so "the first adapter that looks like a
-    /// gadget" can be a stale entry the console is not actually using.
+    /// Matched on GUID rather than name because a name belongs to the physical
+    /// USB port: moving the cable used to turn "Ethernet 2" into "Ethernet 4",
+    /// so a name from a previous read matches nothing. The GUID is the same
+    /// value the app already passes when it asks for sharing to be enabled, and
+    /// it is what Windows itself keys the sharing configuration on.
+    ///
+    /// A stale entry from an unplugged port can also match the gadget
+    /// description, so preferring the live GUID keeps "the console" pointed at
+    /// the adapter the cable is actually in.
     /// </summary>
-    public IcsConnection? ConsoleFor(string? mac) =>
-        string.IsNullOrEmpty(mac)
+    public IcsConnection? ConsoleFor(string? guid) =>
+        string.IsNullOrEmpty(guid)
             ? null
             : Connections.FirstOrDefault(
                 c => c.LooksLikeConsole
-                     && string.Equals(c.Mac, mac, StringComparison.OrdinalIgnoreCase));
+                     && string.Equals(c.Guid, guid, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>True when ICS is actually forwarding something.</summary>
     public bool IsActive => PublicConnection is not null;

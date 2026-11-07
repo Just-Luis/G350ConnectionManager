@@ -45,12 +45,17 @@ public static class AdapterEnumerator
             if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
             if (ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
 
-            IPv4InterfaceProperties? ipProps;
             IPInterfaceProperties props;
             try
             {
                 props = ni.GetIPProperties();
-                ipProps = props.GetIPv4Properties();
+
+                // GetIPv4Properties() throws for interfaces with no IPv4 stack
+                // (Teredo, some virtual adapters). Calling it is the check; the
+                // result is not needed, and discarding it deliberately keeps
+                // those interfaces out of the list rather than listing them with
+                // a null address and no way to tell why.
+                _ = props.GetIPv4Properties();
             }
             catch
             {
@@ -83,17 +88,18 @@ public static class AdapterEnumerator
     }
 
     /// <summary>
-    /// The best candidate for the console link: prefer a gadget-matching adapter,
-    /// then anything currently up.
+    /// The best candidate for the console link.
+    ///
+    /// An adapter that is up wins over one that merely looks like a gadget:
+    /// a port move leaves the old, disconnected instance behind, and returning
+    /// that instead of the live one points every later operation - the address
+    /// read, the ICS toggle, the console refresh - at a device that is not
+    /// there. When nothing is up the gadget match is still returned, so the UI
+    /// can say "adapter present but link is down" rather than "not connected".
     /// </summary>
     public static AdapterInfo? FindConsoleAdapter(IReadOnlyList<AdapterInfo> adapters)
     {
-        return adapters.FirstOrDefault(a => a.IsRndis)
-               ?? adapters.FirstOrDefault(a => a.IsRndis && a.IsUp)
-               ?? null;
+        return adapters.FirstOrDefault(a => a.IsRndis && a.IsUp)
+               ?? adapters.FirstOrDefault(a => a.IsRndis);
     }
-
-    /// <summary>Adapters that could host an internet connection (Wi-Fi, Ethernet).</summary>
-    public static IReadOnlyList<AdapterInfo> ShareableSources(IReadOnlyList<AdapterInfo> adapters)
-        => adapters.Where(a => !a.IsRndis).ToList();
 }

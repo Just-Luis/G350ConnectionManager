@@ -94,8 +94,8 @@ Only one is ever present at a time, but `HNetCfg.HNetShare.EnumEveryConnection` 
 | Disable path clears **all** sharing via `EnumEveryConnection`, no adapter lookup | Unplug → "Turn off sharing" now works. Verified on hardware. |
 | `DisableSharing()` result is re-read and reported honestly (was `Ok = true` unconditionally) | A failed disable no longer claims success. |
 | Target adapter resolved by **GUID first**, then name | Survives the `Ethernet 2 → 4 → 5` rename. |
-| `ConsoleFor(mac)` prefers the adapter whose MAC matches the live one | Avoids picking a ghost RNDIS entry. |
-| `IcsHealth()` pre-flight before enabling | Checks `SharedAccess` running and `ScopeAddress` present; refuses with a real sentence instead of a bare COM code. |
+| `ConsoleFor(guid)` prefers the adapter whose GUID matches the live one | Avoids picking a ghost RNDIS entry. |
+| `IcsHealth()` pre-flight before enabling | Checks `SharedAccess` is running; refuses with a real sentence instead of a bare COM code. (`ScopeAddress` was originally checked here too — see §9, it is not a precondition.) |
 | `--ics-diag` elevated read-only dump | Prints services, the `SharedAccess\Parameters` registry values, and the live connection list with sharing type/status/address/GUID. |
 
 ### 3.2 The `ScopeAddress` discovery — important

@@ -5,11 +5,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Threading;
-using System.Threading.Tasks;
 using G350ConnectionManager.Models;
 using G350ConnectionManager.Services;
-using Microsoft.Win32;
 
 namespace G350ConnectionManager.Views;
 

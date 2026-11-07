@@ -1,0 +1,18 @@
+# Code style enforced at build time.
+#
+# Only rules that are genuinely unambiguous are escalated to build warnings.
+# Everything else stays a suggestion, so a normal `dotnet build` keeps working
+# without surprising anyone with style noise.
+
+root = true
+
+[*.cs]
+# Unused using directives are dead weight: they slow the compiler down and make
+# a file look like it depends on something it does not. Reported at build time.
+dotnet_diagnostic.IDE0005.severity = warning
+
+# A field assigned but never read is always a mistake, never a style choice.
+dotnet_diagnostic.IDE0052.severity = warning
+
+# Unreachable code after a return/throw.
+dotnet_diagnostic.IDE0035.severity = warning

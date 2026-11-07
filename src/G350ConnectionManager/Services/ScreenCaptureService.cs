@@ -1,6 +1,4 @@
-using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Text;
 using Renci.SshNet;
 
@@ -42,10 +40,8 @@ public sealed class ScreenCaptureService : IDisposable
 
     private SshClient? _client;
     private SshCommand? _command;
-    private Task? _pump;
     private BlockingByteQueue? _queue;
     private Queue<byte> _pending = new();
-    private string? _host;
 
     /// <summary>Frames decoded so far, for the UI's counter.</summary>
     public int FrameCount { get; private set; }
@@ -138,7 +134,11 @@ public sealed class ScreenCaptureService : IDisposable
             var ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var failure = new TaskCompletionSource<Exception?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            var pump = Task.Run(async () =>
+            // Deliberately not kept: the pump runs until the stream ends and is
+            // stopped via _command.CancelAsync() in Stop(). Holding the task
+            // would only be useful to await it, and Stop() must not block on a
+            // read that may already be wedged.
+            _ = Task.Run(async () =>
             {
                 // Use the raw SSH channel rather than SshCommand.CreateInputStream():
                 // that helper is only valid while Execute() runs and throws
@@ -215,12 +215,9 @@ public sealed class ScreenCaptureService : IDisposable
 
             _queue = queue;
             _pending = new Queue<byte>();
-            _pump = pump;
 
             _client = client;
             _command = cmd;
-            _pump = pump;
-            _host = host;
             FrameCount = 0;
             return true;
         }
@@ -331,9 +328,7 @@ public sealed class ScreenCaptureService : IDisposable
         _queue = null;
         _pending.Clear();
         _command = null;
-        _pump = null;
         _client = null;
-        _host = null;
     }
 
     /// <summary>Kills any grabber left running on the console.</summary>
