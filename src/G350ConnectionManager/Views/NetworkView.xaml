@@ -263,24 +263,25 @@
 
                             </StackPanel>
 
-                            <!-- The controls live outside IcsDetail on purpose.
+                            <!-- The control lives outside IcsDetail on purpose.
                                  That panel stays collapsed until a snapshot has
                                  been read, so anything inside it is invisible
-                                 before the first Check - which made sharing look
-                                 permanently unavailable. -->
+                                 before the first Check.
+
+                                 A single switch rather than a pair of buttons:
+                                 two buttons meant one was always hidden and both
+                                 could be disabled at once, and it duplicated the
+                                 Home page's control instead of being the same
+                                 control. -->
                             <StackPanel x:Name="IcsActions" Margin="0,14,0,0"
                                         Orientation="Horizontal">
-                                <Button x:Name="IcsEnableButton"
-                                        Style="{StaticResource PrimaryButtonStyle}"
-                                        Content="Turn on sharing"
-                                        Padding="16,8" FontSize="13"
-                                        Click="IcsEnable_Click"/>
-                                <Button x:Name="IcsDisableButton"
-                                        Style="{StaticResource SecondaryButtonStyle}"
-                                        Content="Turn off sharing"
-                                        Margin="10,0,0,0"
-                                        Padding="16,8" FontSize="13"
-                                        Click="IcsDisable_Click"/>
+                                <ToggleButton x:Name="IcsShareToggle"
+                                              Style="{StaticResource ToggleSwitchStyle}"
+                                              Content="Share Wi-Fi"
+                                              VerticalAlignment="Center"
+                                              ToolTip="Give the console internet through this PC's Wi-Fi"
+                                              Checked="IcsShare_Changed"
+                                              Unchecked="IcsShare_Changed"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

@@ -53,14 +53,36 @@ public partial class HomeView : UserControl
     {
         if (_subscribed) return;
         App.Link.Updated += OnLinkUpdated;
+        Sharing.Changed += OnSharingChanged;
         _subscribed = true;
         Render(App.Link.Current);
+
+        // Adopt whatever another page already read, so returning to Home does not
+        // show a stale knob for sharing that was toggled elsewhere.
+        if (Sharing.Last is { } known) ApplySharedState(known);
+    }
+
+    /// <summary>
+    /// Another page changed the sharing state; mirror it here.
+    ///
+    /// This is what makes the switch on Home and the switch on the Network page
+    /// one control with two presentations, rather than two controls that happen
+    /// to look alike.
+    /// </summary>
+    private void OnSharingChanged(object? sender, IcsSnapshot snapshot) => ApplySharedState(snapshot);
+
+    private void ApplySharedState(IcsSnapshot snapshot)
+    {
+        _userToggled = true;          // a real read outranks the probe's guess
+        _sharingOn = snapshot.IsActive;
+        SyncToggle(snapshot.IsActive);
     }
 
     private void Unsubscribe()
     {
         if (!_subscribed) return;
         App.Link.Updated -= OnLinkUpdated;
+        Sharing.Changed -= OnSharingChanged;
         _subscribed = false;
     }
 

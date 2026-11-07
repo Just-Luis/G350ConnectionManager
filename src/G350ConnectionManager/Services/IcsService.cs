@@ -329,6 +329,18 @@ public sealed class IcsService
                       + (LastClearFailures ?? "unknown adapter")
                       + "). If it still shows as shared, clear it in Network "
                       + "Connections (ncpa.cpl).";
+
+                // ICS releases the address it imposed when sharing stops, which
+                // leaves the adapter with no IPv4 configuration at all - observed
+                // as a bare 169.254 link-local. The console is still plugged in
+                // and still on the direct subnet, so without this the link that
+                // was working a second ago disappears and the console becomes
+                // unreachable for SFTP, SSH and screen capture.
+                if (payload.Applied && targetName.Length > 0)
+                {
+                    var restored = RestoreDirectAddress(targetName);
+                    if (restored is not null) payload.Message += " " + restored;
+                }
             }
             else
             {
@@ -868,6 +880,45 @@ public sealed class IcsService
             ? "The Internet Connection Sharing service is now running."
             : "The Internet Connection Sharing service could not be started. "
               + Collapse(start.Output);
+    }
+
+    /// <summary>
+    /// Puts the adapter back on the direct-link address after sharing stops.
+    ///
+    /// Internet Connection Sharing asserts its scope address on the private
+    /// interface and removes it when sharing is turned off, leaving the adapter
+    /// with no IPv4 address. The console is still plugged in and still configured
+    /// for 192.168.7.x, so the link silently stops working until something
+    /// addresses the adapter again.
+    ///
+    /// Only applied when the adapter has no usable address of its own; a manual
+    /// configuration the user chose is left untouched.
+    /// Returns a sentence to append to the result, or null when nothing changed.
+    /// </summary>
+    private static string? RestoreDirectAddress(string adapterName)
+    {
+        var current = AdapterAddress(adapterName);
+
+        if (current is not null
+            && !current.StartsWith("169.254.", StringComparison.Ordinal)
+            && current is not "(none)" and not "(unknown)")
+        {
+            return null;
+        }
+
+        Run("netsh",
+            $"interface ipv4 set address name=\"{adapterName}\" static "
+            + "192.168.7.1 255.255.255.0");
+
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            Thread.Sleep(500);
+            if (string.Equals(AdapterAddress(adapterName), "192.168.7.1", StringComparison.Ordinal))
+                return "The console adapter was returned to 192.168.7.1.";
+        }
+
+        return "The console adapter has no address; set one in Network Connections "
+             + "to use the console's direct link.";
     }
 
     /// <summary>True when the start type allows the service to be started.</summary>

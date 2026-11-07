@@ -22,6 +22,13 @@ public partial class NetworkView : UserControl
     private bool _icsBusy;
     private IcsSnapshot? _icsSnapshot;
 
+    /// <summary>
+    /// Suppresses <see cref="IcsShare_Changed"/> while the switch is being moved
+    /// to mirror the real state, so a repaint is never mistaken for a click.
+    /// </summary>
+    private bool _syncingToggle;
+
+
     public NetworkView()
     {
         InitializeComponent();
@@ -71,13 +78,10 @@ public partial class NetworkView : UserControl
         }
         else
         {
-            // Nothing read yet. Offer both directions: the page cannot know
-            // which one applies, and showing only "Turn on" would leave a user
-            // who is already sharing with no way to stop it short of pressing
-            // Check first. Either click reads the state before acting.
-            ShowActions(enableVisible: true, disableVisible: true);
-            IcsEnableButton.IsEnabled = !_icsBusy;
-            IcsDisableButton.IsEnabled = !_icsBusy;
+            // Nothing read yet. The switch stays usable and either direction
+            // reads the state before acting, so Check is never a prerequisite.
+            IcsActions.Visibility = Visibility.Visible;
+            IcsShareToggle.IsEnabled = !_icsBusy;
         }
     }
 
@@ -392,37 +396,49 @@ public partial class NetworkView : UserControl
     /// </summary>
     private void RenderIcsActions(IcsSnapshot s)
     {
-        var console = s.ConsoleConnection;
-        var canShare = console is not null && s.Connections.Count > 1;
-
-        // Both controls are always reachable. Hiding the one that does not match
-        // the current state meant that before a read - and after any state the
-        // page had not noticed - there was no button to press at all.
-        ShowActions(
-            enableVisible: !s.IsActive,
-            disableVisible: s.IsActive);
-
-        IcsEnableButton.IsEnabled = !_icsBusy && canShare;
-        IcsDisableButton.IsEnabled = !_icsBusy && canShare;
-
+        // The switch is always usable. It used to require a detected console
+        // connection before either button could be pressed, which greyed out the
+        // controls exactly after the status read the user had just asked for.
+        // The operation itself reports a missing adapter if there is one.
         IcsActions.Visibility = Visibility.Visible;
+        IcsShareToggle.IsEnabled = !_icsBusy;
+
+        MirrorToggle(s.IsActive);
     }
 
-    /// <summary>Visibility only; never used to hide both at once.</summary>
-    private void ShowActions(bool enableVisible, bool disableVisible)
+    /// <summary>
+    /// Moves the switch without raising the click handler.
+    /// </summary>
+    private void MirrorToggle(bool on)
     {
-        IcsEnableButton.Visibility = enableVisible ? Visibility.Visible : Visibility.Collapsed;
-        IcsDisableButton.Visibility = disableVisible ? Visibility.Visible : Visibility.Collapsed;
-        IcsActions.Visibility = Visibility.Visible;
+        _syncingToggle = true;
+        try
+        {
+            IcsShareToggle.IsChecked = on;
+        }
+        finally
+        {
+            _syncingToggle = false;
+        }
     }
+
 
     // ------------------------------------------------------------- ics toggle
 
-    private async void IcsEnable_Click(object sender, RoutedEventArgs e)
-        => await ToggleSharingAsync(enable: true);
+    /// <summary>
+    /// Raised by the switch in either direction. Shares the Home page's pattern:
+    /// the knob is only moved by code when mirroring real state, never in
+    /// response to a user click, so a programmatic sync cannot start a second
+    /// share operation.
+    /// </summary>
+    private async void IcsShare_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_syncingToggle) return;
 
-    private async void IcsDisable_Click(object sender, RoutedEventArgs e)
-        => await ToggleSharingAsync(enable: false);
+        var enable = IcsShareToggle.IsChecked == true;
+
+        await ToggleSharingAsync(enable);
+    }
 
     /// <summary>
     /// Enables or disables sharing and realigns the console's default route. The
