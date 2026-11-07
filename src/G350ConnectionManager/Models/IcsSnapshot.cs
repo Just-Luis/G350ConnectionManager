@@ -9,13 +9,19 @@ namespace G350ConnectionManager.Models;
 /// <param name="IsConnected">True when Windows reports the connection up.</param>
 /// <param name="SharingEnabled">True when this connection is currently shared.</param>
 /// <param name="SharingType">0 = public (source), 1 = private (destination).</param>
+/// <param name="Mac">
+/// MAC address of the adapter. The console's USB gadget keeps the same MAC
+/// across USB ports, so this identifies the device itself; the adapter *name*
+/// does not, because it belongs to the port.
+/// </param>
 public sealed record IcsConnection(
     string Name,
     string DeviceName,
     string Guid,
     bool IsConnected,
     bool SharingEnabled,
-    int SharingType)
+    int SharingType,
+    string Mac = "")
 {
     public bool IsPublic => SharingEnabled && SharingType == 0;
     public bool IsPrivate => SharingEnabled && SharingType == 1;
@@ -52,6 +58,20 @@ public sealed record IcsSnapshot(
 
     public IcsConnection? ConsoleConnection =>
         Connections.FirstOrDefault(c => c.LooksLikeConsole);
+
+    /// <summary>
+    /// The console adapter carrying this exact console's MAC, when one is known.
+    ///
+    /// A port move leaves more than one gadget adapter behind - Windows keeps
+    /// the old, disconnected one - so "the first adapter that looks like a
+    /// gadget" can be a stale entry the console is not actually using.
+    /// </summary>
+    public IcsConnection? ConsoleFor(string? mac) =>
+        string.IsNullOrEmpty(mac)
+            ? null
+            : Connections.FirstOrDefault(
+                c => c.LooksLikeConsole
+                     && string.Equals(c.Mac, mac, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>True when ICS is actually forwarding something.</summary>
     public bool IsActive => PublicConnection is not null;
