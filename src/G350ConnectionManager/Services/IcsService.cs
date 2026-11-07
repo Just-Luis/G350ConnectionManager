@@ -707,6 +707,10 @@ public sealed class IcsService
         lines.Add("subnet has no gateway even though sharing reports as active.");
         lines.Add("ScopeAddressBackup is what Windows restores ScopeAddress from.");
         lines.Add(string.Empty);
+        lines.Add("A MISSING ScopeAddress is normal before sharing has ever been enabled:");
+        lines.Add("ICS writes it itself on first enable. It is reported here for");
+        lines.Add("completeness, not because it blocks anything.");
+        lines.Add(string.Empty);
 
         lines.Add("--- local candidates (read without elevation) ---");
         lines.Add($"Console addresses .137.2 / .7.2 : {Reach("192.168.137.2")} / {Reach("192.168.7.2")}");
@@ -895,17 +899,20 @@ public sealed class IcsService
     /// explaining why it cannot.
     ///
     /// This exists because 0x80040201 says nothing about which of several very
-    /// different problems occurred. Measured on the affected machine: after
-    /// <c>ScopeAddress</c> had been deleted from
-    /// <c>HKLM\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters</c>,
-    /// <b>every</b> EnableSharing call failed with 0x80040201 - private and public,
-    /// on the console adapter, the Realtek NIC and the Hyper-V switch alike.
-    /// Writing the value back fixed the public side immediately, which shows the
-    /// missing value was the cause and not a symptom.
+    /// different problems occurred, and a bare COM code is not actionable.
     ///
-    /// So the two things worth checking before touching an adapter are the value
-    /// ICS needs in order to renumber a shared interface, and the service that owns
-    /// it. Both are readable without elevated COM.
+    /// <b>Only genuine blockers belong here.</b> An earlier version also refused
+    /// to continue when the <c>ScopeAddress</c> registry value was missing, on the
+    /// theory that it caused 0x80040201. That was measured and is wrong: with
+    /// <c>ScopeAddress</c> absent and the console adapter correctly addressed,
+    /// both <c>EnableSharing(1)</c> and <c>EnableSharing(0)</c> succeed, because ICS
+    /// writes the scope itself on first enable. The original observation was taken
+    /// while the adapter was on the wrong subnet, so the failure was being blamed
+    /// on the registry value instead of on the addressing.
+    ///
+    /// Refusing there was actively harmful: on a machine in that state the guard
+    /// rejected every share attempt before COM was ever called, so the user was
+    /// shown a diagnosis for an error the app had never received.
     /// </summary>
     private static string? IcsHealth()
     {
@@ -915,16 +922,7 @@ public sealed class IcsService
                  + "running, so sharing cannot be enabled. Start it and try again.";
         }
 
-        if (string.IsNullOrEmpty(ReadScopeAddress()))
-        {
-            return "ICS has no scope address configured, so Windows rejects every "
-                 + "sharing change with 0x80040201. This is the state left behind by "
-                 + "an earlier repair that deleted the ScopeAddress registry value. "
-                 + "Run --ics-diag for the details, restore ScopeAddress ("
-                 + "ScopeAddressBackup usually holds the right value), then restart "
-                 + "the SharedAccess service.";
-        }
-
+        // A missing ScopeAddress is deliberately NOT a blocker - see the note above.
         return null;
     }
 
@@ -942,14 +940,15 @@ public sealed class IcsService
 
         if (ex.HResult == EventInvokeFailed)
         {
-            return "Windows refused to apply the sharing change (0x80040201). Known "
-                 + "causes, in the order worth checking: (1) the ScopeAddress registry "
-                 + "value under SharedAccess\\Parameters is missing - run --ics-diag "
-                 + "to see; (2) ICS still references a console adapter that is no "
-                 + "longer connected, which happens when the cable moves USB port; "
-                 + "(3) the machine needs a reboot to recover from a wedged ICS/NAT "
-                 + "state. Clearing sharing in Network Connections (ncpa.cpl) fixes "
-                 + "(2) if it persists.";
+            return "Windows refused to apply the sharing change (0x80040201). "
+                 + "Known causes, in the order worth checking: (1) the console "
+                 + "adapter is on the wrong subnet or has no address, so ICS cannot "
+                 + "use it as the shared side - check it holds 192.168.7.1 or is "
+                 + "left for ICS to number; (2) ICS still references a console "
+                 + "adapter that is no longer connected, which used to happen when "
+                 + "the cable moved USB port; (3) the machine needs a reboot to "
+                 + "recover from a wedged ICS state. A missing ScopeAddress registry "
+                 + "value is NOT a cause: ICS writes it itself on first enable.";
         }
 
         return $"{ex.GetType().Name}: {ex.Message}";
