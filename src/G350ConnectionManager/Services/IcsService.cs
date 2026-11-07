@@ -23,6 +23,7 @@ public sealed class IcsService
     public const string ProbeArgument = "--ics-probe";
     public const string ToggleArgument = "--ics-toggle";
     public const string DiagArgument = "--ics-diag";
+    public const string RepairArgument = "--ics-repair";
 
     private const string ServiceName = "SharedAccess";
 
@@ -790,6 +791,143 @@ public sealed class IcsService
         }
     }
 
+    /// <summary>
+    /// True when the SharedAccess service is installed but its start type is
+    /// Disabled, which means it cannot be started at all.
+    ///
+    /// This matters because <see cref="IcsHealth"/> tells the user to "start it
+    /// and try again" - advice that is impossible to follow while the service is
+    /// disabled. Detecting it separately lets the app say something actionable.
+    /// </summary>
+    private static bool IsServiceDisabled()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                @"SYSTEM\CurrentControlSet\Services\" + ServiceName);
+            return key?.GetValue("Start") is int start && start == 4;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Restores the SharedAccess service to Manual and starts it.
+    ///
+    /// Only ever called from an explicit <c>--ics-repair</c> invocation. Setting
+    /// a service's start type is a machine-wide change, so it is never performed
+    /// automatically as a side effect of a status probe or a sharing toggle.
+    ///
+    /// The start type is written through <c>sc.exe config</c> rather than the
+    /// registry directly, so Windows performs its own bookkeeping. Returns a
+    /// sentence describing the outcome.
+    /// </summary>
+    private static string RepairService()
+    {
+        // Start type is checked BEFORE the running state. A disabled service can
+        // still be reported as running - Windows leaves the process up, it just
+        // refuses to start it again - so testing "is it running" first made the
+        // repair report "already running" and leave the service disabled.
+        if (IsServiceDisabled())
+        {
+            var config = Run("sc.exe", $"config {ServiceName} start= demand", timeoutMs: 10000);
+            if (config.ExitCode != 0)
+                return "The service start type could not be changed. " + Collapse(config.Output);
+
+            if (IsServiceRunning())
+                return "The Internet Connection Sharing service was re-enabled "
+                     + "(it was still running).";
+
+            Run("sc.exe", "start " + ServiceName, timeoutMs: 20000);
+
+            for (var attempt = 0; attempt < 10; attempt++)
+            {
+                if (IsServiceRunning())
+                    return "The Internet Connection Sharing service was re-enabled and started.";
+                Thread.Sleep(500);
+            }
+
+            return "The service start type was restored to Manual, but it did not start. "
+                 + "A reboot may be required.";
+        }
+
+        if (!ServiceStartTypeIsUsable())
+        {
+            // Not Disabled but also not startable: report rather than guess.
+            return "The Internet Connection Sharing service is not running and its "
+                 + "start type is not Manual. Set it to Manual in Services, then retry.";
+        }
+
+        if (IsServiceRunning())
+            return "The Internet Connection Sharing service is already running.";
+
+        var start = Run("sc.exe", "start " + ServiceName, timeoutMs: 20000);
+        return IsServiceRunning()
+            ? "The Internet Connection Sharing service is now running."
+            : "The Internet Connection Sharing service could not be started. "
+              + Collapse(start.Output);
+    }
+
+    /// <summary>True when the start type allows the service to be started.</summary>
+    private static bool ServiceStartTypeIsUsable()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                @"SYSTEM\CurrentControlSet\Services\" + ServiceName);
+            return key?.GetValue("Start") is int start && start is 2 or 3;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Entry point for <c>--ics-repair</c>: re-enable and start the ICS service
+    /// if it has been disabled. Changes nothing else.
+    ///
+    /// Deliberately does not touch the SharedAccess\Parameters registry values.
+    /// Sharing works with ScopeAddress absent, and deleting those values is what
+    /// damaged this class of machine in the first place.
+    /// </summary>
+    public static int RunRepair(string outPath)
+    {
+        var lines = new List<string>
+        {
+            $"G350 Companion ICS repair · {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
+            string.Empty,
+            $"SharedAccess before : {ServiceState(ServiceName)}",
+            $"Start type before   : {ServiceStartType(ServiceName)}",
+            string.Empty
+        };
+
+        try
+        {
+            lines.Add(RepairService());
+        }
+        catch (Exception ex)
+        {
+            lines.Add($"Repair failed: {ex.Message}");
+        }
+
+        lines.Add(string.Empty);
+        lines.Add($"SharedAccess after  : {ServiceState(ServiceName)}");
+        lines.Add($"Start type after    : {ServiceStartType(ServiceName)}");
+
+        try
+        {
+            File.WriteAllText(outPath, string.Join(Environment.NewLine, lines));
+            return IsServiceRunning() ? 0 : 3;
+        }
+        catch
+        {
+            return 2;
+        }
+    }
+
     private static string ServiceState(string name)
     {
         try
@@ -952,8 +1090,14 @@ public sealed class IcsService
     {
         if (!IsServiceRunning())
         {
-            return "The Internet Connection Sharing service (SharedAccess) is not "
-                 + "running, so sharing cannot be enabled. Start it and try again.";
+            // "Start it and try again" is impossible advice when the service is
+            // administratively disabled, so that case says what to do instead.
+            return IsServiceDisabled()
+                ? "The Internet Connection Sharing service (SharedAccess) is "
+                + "disabled, so sharing cannot be enabled. Restore it with "
+                + "--ics-repair, or set its startup type to Manual in Services."
+                : "The Internet Connection Sharing service (SharedAccess) is not "
+                + "running, so sharing cannot be enabled. Start it and try again.";
         }
 
         // A missing ScopeAddress is deliberately NOT a blocker - see the note above.

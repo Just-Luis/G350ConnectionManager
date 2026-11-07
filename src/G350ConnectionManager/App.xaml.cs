@@ -47,6 +47,17 @@ public partial class App : Application
             return;
         }
 
+        if (e.Args.Length > 0 && e.Args[0] == IcsService.RepairArgument)
+        {
+            // --ics-repair <out.txt>
+            var repairPath = e.Args.Length > 1 ? e.Args[1] : string.Empty;
+            var repairCode = string.IsNullOrEmpty(repairPath)
+                ? 2
+                : IcsService.RunRepair(repairPath);
+            Shutdown(repairCode);
+            return;
+        }
+
         if (e.Args.Length > 0 && e.Args[0] == IcsService.DiagArgument)
         {
             // --ics-diag <out.txt>
